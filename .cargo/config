@@ -1,0 +1,7 @@
+[build]
+target = "i686-unknown-linux-gnu"
+
+[target.i686-unknown-linux-gnu]
+#rustflags = ["-C", "link-arg=-Tlink.ld", "--emit", "obj"]
+#rustflags = ["-C", "relocation-model=static", "-C", "link-arg=-Tlink.ld"]
+#rustflags = ["-C", "code-model=kernel"]
