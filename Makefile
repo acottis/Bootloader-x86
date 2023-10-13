@@ -7,6 +7,6 @@ asm:
 	nasm -felf32 boot.asm -o target/asm.o
 
 rust: asm
-	rustc --target i686-unknown-linux-gnu --emit=obj -C relocation-model=static -C panic=abort src/lib.rs -o target/rust.o
+	rustc --target i686-unknown-linux-gnu --emit=obj -C relocation-model=static -C panic=abort -C lto -C opt-level=3 src/lib.rs -o target/rust.o
 	ld target/asm.o target/rust.o -T link.ld -m elf_i386 -nmagic -o target/boot.bin
 

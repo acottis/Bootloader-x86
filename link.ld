@@ -15,9 +15,9 @@ SECTIONS {
     .bss : {
         *(.bss)
     }
-    . = 0x7DFE;
-    .text : {
-        *(.boot.bytes)
+    . = 0x7C00 + 510;
+    .boot_magic : {
+        SHORT(0xaa55)
     }
 }
 

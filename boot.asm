@@ -67,7 +67,7 @@ gdt_section_data:
 
 global_desc_table_desc:
     ; GDT.Limit
-    dw global_desc_table_desc - global_desc_table_base
+    dw global_desc_table_desc - global_desc_table_base - 1
     ; GDT.Base
     dd global_desc_table_base
 
@@ -88,7 +88,3 @@ pm_entry:
     mov esp, 0x7C00
     call entry
 
-section .boot.bytes
-; Ensure the 510-512 bits are 0xAA55 to be seen as bootable by the bios
-; times 510-($-$$) db 0  ; Fill the rest of the sector with zeros
-dw 0xAA55               ; Boot signature (0xAA55)
