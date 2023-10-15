@@ -92,6 +92,22 @@ unsafe fn write_vga(byte: u8) {
     VGA_BUFFER = VGA_BUFFER.add(2);
 }
 
+macro_rules! vga_print {
+    ($($arg:tt)*) => {
+        vga_print(format_args!($($arg)*).as_str().unwrap())
+    };
+}
+
+fn vga_print(s: &str) {
+    unsafe {
+        for byte in s.bytes() {
+            write_volatile(VGA_BUFFER.offset(0), byte);
+            write_volatile(VGA_BUFFER.offset(1), BG_LIGHT_GREY);
+            VGA_BUFFER = VGA_BUFFER.add(2);
+        }
+    }
+}
+
 unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
     let mut entry: usize = 0;
     while entry < IDT_ENTRIES as usize {
@@ -162,7 +178,7 @@ unsafe fn setup_pic() {
 
 #[no_mangle]
 unsafe fn entry() {
-    write_vga(b'H');
+    vga_print!("Hello world {}", 200);
 
     let mut idt = [IdtEntry {
         isr_low: 0,
