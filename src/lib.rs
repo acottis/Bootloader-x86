@@ -2,13 +2,14 @@
 #![no_main]
 #![feature(naked_functions)]
 
-use core::arch::asm;
+use core::{arch::asm, ptr::write_volatile};
 
+// VGA Stuff
 const BG_LIGHT_GREY: u8 = 0x07;
 static mut VGA_BUFFER: *mut u8 = 0xB8000 as *mut u8;
 
 // IDT STUFF
-const IDT_ENTRIES: u16 = 256;
+const IDT_ENTRIES: u16 = 0xFF;
 const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
 const CODE_SELECTOR_OFFSET: u16 = 8;
@@ -55,7 +56,7 @@ struct IdtEntry {
 #[no_mangle]
 unsafe extern "C" fn i() {
     write_vga(b'I');
-    //pic_end_of_interrupt();
+    pic_eoi();
 }
 
 #[no_mangle]
@@ -65,7 +66,7 @@ unsafe extern "C" fn e() {
 
 #[naked]
 unsafe extern "C" fn exception_handler() -> ! {
-    asm!("call e", "cli", "hlt", options(noreturn));
+    asm!("pushad", "call e", "popad", "cli", "hlt", options(noreturn));
 }
 
 #[naked]
@@ -86,8 +87,8 @@ unsafe fn in8(port: u16) -> u8 {
 }
 
 unsafe fn write_vga(byte: u8) {
-    core::ptr::write_volatile(VGA_BUFFER.offset(0), byte);
-    core::ptr::write_volatile(VGA_BUFFER.offset(1), BG_LIGHT_GREY);
+    write_volatile(VGA_BUFFER.offset(0), byte);
+    write_volatile(VGA_BUFFER.offset(1), BG_LIGHT_GREY);
     VGA_BUFFER = VGA_BUFFER.add(2);
 }
 
@@ -123,62 +124,57 @@ unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
         base: idt.as_ptr() as u32,
     };
 
-    asm!("lidt [{lidt_desc}]", lidt_desc = in(reg) &lidt_desc);
+    asm!("lidt [{}]", in(reg) &lidt_desc);
+    asm!("sti");
 }
 
-fn pic_end_of_interrupt() {
-    unsafe {
-        out8(PIC1_COMMAND, PIC_END_OF_INTERRUPT);
-        out8(PIC2_COMMAND, PIC_END_OF_INTERRUPT);
-    }
+unsafe fn pic_eoi() {
+    out8(PIC1_COMMAND, PIC_END_OF_INTERRUPT);
+    out8(PIC2_COMMAND, PIC_END_OF_INTERRUPT);
 }
 
-fn setup_pic() {
-    unsafe {
-        let pic1_mask = in8(PIC1_DATA);
-        let pic2_mask = in8(PIC2_DATA);
+unsafe fn setup_pic() {
+    // Save default mask
+    let pic1_mask = in8(PIC1_DATA);
+    let pic2_mask = in8(PIC2_DATA);
 
-        // Initialise the PIC
-        out8(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
-        out8(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
+    // Initialise the PIC
+    out8(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
+    out8(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
 
-        // Point the PIC to the IDT indices
-        out8(PIC1_DATA, 0x20);
-        out8(PIC2_DATA, 0x28);
+    // Point the PIC to the IDT indices
+    out8(PIC1_DATA, 0x20);
+    out8(PIC2_DATA, 0x28);
 
-        // Tell master that slave is at IRQ2
-        out8(PIC1_DATA, 0b0000_0100);
-        // Tell slave its cascae identity
-        out8(PIC2_DATA, 0b0000_0010);
+    // Tell master that slave is at IRQ2
+    out8(PIC1_DATA, 0b0000_0100);
+    // Tell slave its cascae identity
+    out8(PIC2_DATA, 0b0000_0010);
 
-        out8(PIC1_DATA, ICW4_8086);
-        out8(PIC2_DATA, ICW4_8086);
+    // Set 8086 mode
+    out8(PIC1_DATA, ICW4_8086);
+    out8(PIC2_DATA, ICW4_8086);
 
-        out8(PIC1_DATA, pic1_mask);
-        out8(PIC2_DATA, pic2_mask);
-    }
+    // Use default masks
+    out8(PIC1_DATA, pic1_mask);
+    out8(PIC2_DATA, pic2_mask);
 }
 
 #[no_mangle]
-fn entry() {
-    unsafe {
-        write_vga(b'H');
+unsafe fn entry() {
+    write_vga(b'H');
 
-        let mut idt = [IdtEntry {
-            isr_low: 0,
-            kernel_cs: 0,
-            reserved: 0,
-            attributes: 0,
-            isr_high: 0,
-        }; IDT_ENTRIES as usize];
-        setup_idt(&mut idt);
+    let mut idt = [IdtEntry {
+        isr_low: 0,
+        kernel_cs: 0,
+        reserved: 0,
+        attributes: 0,
+        isr_high: 0,
+    }; IDT_ENTRIES as usize];
+    setup_idt(&mut idt);
+    setup_pic();
 
-        //setup_pic();
-        //asm!("sti");
-        asm!("int 0x20");
-        asm!("int 0x20");
-        //asm!("int 100");
-        write_vga(b'Z');
+    loop {
         asm!("hlt");
     }
 }
