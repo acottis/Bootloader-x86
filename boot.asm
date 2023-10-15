@@ -2,8 +2,9 @@
 ; for addressing
 ;ORG 0x7C00
 
-section .text.asm.entry
-    extern entry
+extern entry
+
+section .stage0
 
 ; assemble copatable with x86 real mode
 [bits 16]
@@ -14,6 +15,9 @@ real_entry:
     ; 16 bit clear screen interupt
     mov ax, 0x03
     int 0x10
+
+    ; Read next stage bootloader from disk
+    call read_disk
 
     ; Set A20
     in al, 0x92
@@ -32,6 +36,23 @@ real_entry:
     ; Jump to 32 bit mode with the code descriptor as cs cant be modified with mov
     ; https://stackoverflow.com/questions/23978486/far-jump-in-gdt-in-bootloader
     jmp (gdt_section_code - global_desc_table_base):pm_entry
+
+read_disk:
+     ; Load the additional bootloader code from disk
+    mov ah, 0x42
+    mov si, disk_access_packet
+    mov dl, byte 0x80
+    int 0x13
+    ret
+
+; Struct we pass to int 0x13 to read from disk
+disk_access_packet:
+    size db 16
+    reserved db 0
+    max_sectors dw 127
+    ; We write the whole disk to the entrypoint over the top of what we have
+    load_address dd 0x7C00 
+    start_sector dq 0
 
 ; Lets us Read/Write/Execute all memory! God mode!
 ; https://wiki.osdev.org/GDT_Tutorial

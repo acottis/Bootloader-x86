@@ -1,8 +1,7 @@
 default: run
 
 run: rust
-	qemu-system-i386 -hda target/boot.bin -boot order=c
-	# qemu-system-x86_64 -fda target/boot.bin -boot order=a
+	qemu-system-x86_64 -hda target/boot.bin -boot order=c
 
 asm:
 	nasm -felf32 boot.asm -o target/asm.o
