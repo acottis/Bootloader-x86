@@ -15,7 +15,7 @@ SECTIONS {
         *(.data)
     }
     .rodata : {
-        *(.rodata)
+        *(.rodata.*)
     }
     .bss : {
         *(.bss)

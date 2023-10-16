@@ -6,7 +6,9 @@ use core::{arch::asm, ptr::write_volatile};
 
 // VGA Stuff
 const BG_LIGHT_GREY: u8 = 0x07;
-static mut VGA_BUFFER: *mut u8 = 0xB8000 as *mut u8;
+const VGA_BUFFER: *mut u8 = 0xB8000 as *mut u8;
+const VGA_WIDTH: isize = 160;
+static mut VGA_OFFSET: isize = 0;
 
 // IDT STUFF
 const IDT_ENTRIES: u16 = 0xFF;
@@ -31,7 +33,8 @@ const ICW1_ICW4: u8 = 0x01;
 const ICW4_8086: u8 = 0x01;
 
 #[panic_handler]
-fn panic_handler(_panic: &core::panic::PanicInfo<'_>) -> ! {
+fn panic_handler(_info: &core::panic::PanicInfo<'_>) -> ! {
+    write_vga!("Panic!");
     loop {}
 }
 
@@ -55,13 +58,15 @@ struct IdtEntry {
 
 #[no_mangle]
 unsafe extern "C" fn i() {
-    write_vga(b'I');
-    pic_eoi();
+    let stack_ptr: u32;
+    asm!("mov {}, esp", out(reg) stack_ptr);
+    write_vga!("I - ESP:{stack_ptr:X}");
+    //pic_eoi();
 }
 
 #[no_mangle]
 unsafe extern "C" fn e() {
-    write_vga(b'E');
+    write_vga!("E");
 }
 
 #[naked]
@@ -86,26 +91,30 @@ unsafe fn in8(port: u16) -> u8 {
     value
 }
 
-unsafe fn write_vga(byte: u8) {
-    write_volatile(VGA_BUFFER.offset(0), byte);
-    write_volatile(VGA_BUFFER.offset(1), BG_LIGHT_GREY);
-    VGA_BUFFER = VGA_BUFFER.add(2);
-}
+struct Vga;
 
-macro_rules! vga_print {
-    ($($arg:tt)*) => {
-        vga_print(format_args!($($arg)*).as_str().unwrap())
-    };
-}
-
-fn vga_print(s: &str) {
-    unsafe {
-        for byte in s.bytes() {
-            write_volatile(VGA_BUFFER.offset(0), byte);
-            write_volatile(VGA_BUFFER.offset(1), BG_LIGHT_GREY);
-            VGA_BUFFER = VGA_BUFFER.add(2);
+impl core::fmt::Write for Vga {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        unsafe {
+            for byte in s.bytes() {
+                if byte == b'\n' {
+                    VGA_OFFSET += VGA_WIDTH - (VGA_OFFSET % VGA_WIDTH);
+                    continue;
+                }
+                write_volatile(VGA_BUFFER.offset(VGA_OFFSET), byte);
+                write_volatile(VGA_BUFFER.offset(VGA_OFFSET + 1), BG_LIGHT_GREY);
+                VGA_OFFSET = VGA_OFFSET + 2;
+            }
         }
+        Ok(())
     }
+}
+
+#[macro_export]
+macro_rules! write_vga {
+    ($($arg:tt)*) => {
+        _ = core::fmt::Write::write_fmt(&mut Vga, format_args!($($arg)*));
+    };
 }
 
 unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
@@ -141,7 +150,6 @@ unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
     };
 
     asm!("lidt [{}]", in(reg) &lidt_desc);
-    asm!("sti");
 }
 
 unsafe fn pic_eoi() {
@@ -174,11 +182,14 @@ unsafe fn setup_pic() {
     // Use default masks
     out8(PIC1_DATA, pic1_mask);
     out8(PIC2_DATA, pic2_mask);
+    asm!("sti");
 }
 
 #[no_mangle]
 unsafe fn entry() {
-    vga_print!("Hello world {}", 200);
+    let stack_ptr: u32;
+    asm!("mov {}, esp", out(reg) stack_ptr);
+    write_vga!("RustEntry ESP:{:X}\n", stack_ptr);
 
     let mut idt = [IdtEntry {
         isr_low: 0,
