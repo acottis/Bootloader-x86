@@ -58,15 +58,14 @@ struct IdtEntry {
 
 #[no_mangle]
 unsafe extern "C" fn i() {
-    let stack_ptr: u32;
-    asm!("mov {}, esp", out(reg) stack_ptr);
-    write_vga!("I - ESP:{stack_ptr:X}");
-    //pic_eoi();
+    print_stack(20);
+    asm!("cli", "hlt");
+    pic_eoi();
 }
 
 #[no_mangle]
 unsafe extern "C" fn e() {
-    write_vga!("E");
+    write_vga!("Error");
 }
 
 #[naked]
@@ -102,6 +101,7 @@ impl core::fmt::Write for Vga {
                     continue;
                 }
                 write_volatile(VGA_BUFFER.offset(VGA_OFFSET), byte);
+                write_volatile(VGA_BUFFER.offset(VGA_OFFSET), byte);
                 write_volatile(VGA_BUFFER.offset(VGA_OFFSET + 1), BG_LIGHT_GREY);
                 VGA_OFFSET = VGA_OFFSET + 2;
             }
@@ -115,6 +115,15 @@ macro_rules! write_vga {
     ($($arg:tt)*) => {
         _ = core::fmt::Write::write_fmt(&mut Vga, format_args!($($arg)*));
     };
+}
+
+fn print_stack(count: isize) {
+    let stack_ptr: *const u32;
+    unsafe { asm!("mov {}, esp", out(reg) stack_ptr) };
+    for offset in 0..count {
+        let value = unsafe { *stack_ptr.offset(offset) };
+        write_vga!("ESP+{}: {:X}\n", offset * 4, value);
+    }
 }
 
 unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
