@@ -2,13 +2,9 @@
 #![no_main]
 #![feature(naked_functions)]
 
-use core::{arch::asm, ptr::write_volatile};
+use core::arch::asm;
 
-// VGA Stuff
-const BG_LIGHT_GREY: u8 = 0x07;
-const VGA_BUFFER: *mut u8 = 0xB8000 as *mut u8;
-const VGA_WIDTH: isize = 160;
-static mut VGA_OFFSET: isize = 0;
+mod vga;
 
 // IDT STUFF
 const IDT_ENTRIES: u16 = 0xFF;
@@ -127,33 +123,6 @@ unsafe fn in8(port: u16) -> u8 {
     value
 }
 
-struct Vga;
-
-impl core::fmt::Write for Vga {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        unsafe {
-            for byte in s.bytes() {
-                if byte == b'\n' {
-                    VGA_OFFSET += VGA_WIDTH - (VGA_OFFSET % VGA_WIDTH);
-                    continue;
-                }
-                write_volatile(VGA_BUFFER.offset(VGA_OFFSET), byte);
-                write_volatile(VGA_BUFFER.offset(VGA_OFFSET), byte);
-                write_volatile(VGA_BUFFER.offset(VGA_OFFSET + 1), BG_LIGHT_GREY);
-                VGA_OFFSET = VGA_OFFSET + 2;
-            }
-        }
-        Ok(())
-    }
-}
-
-#[macro_export]
-macro_rules! write_vga {
-    ($($arg:tt)*) => {
-        _ = core::fmt::Write::write_fmt(&mut Vga, format_args!($($arg)*));
-    };
-}
-
 fn print_stack(count: isize) {
     let stack_ptr: *const u32;
     unsafe { asm!("mov {}, esp", out(reg) stack_ptr) };
@@ -244,7 +213,7 @@ unsafe fn setup_pic() {
 #[no_mangle]
 unsafe fn entry() {
     let stack_ptr: u32;
-    asm!("mov {}, esp", out(reg) stack_ptr);
+    asm!("mov {:e}, esp", out(reg) stack_ptr);
     write_vga!("RustEntry ESP:{:X}\n", stack_ptr);
 
     let mut idt = [IdtEntry {
