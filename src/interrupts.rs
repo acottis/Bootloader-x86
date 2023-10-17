@@ -5,7 +5,6 @@ const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
 const CODE_SELECTOR_OFFSET: u16 = 8;
 
-#[macro_export]
 macro_rules! isr {
     ($irq:ident, $module:ident$(::$rest:ident)*) => {
         #[naked]
@@ -22,7 +21,6 @@ macro_rules! isr {
     };
 }
 
-#[macro_export]
 macro_rules! trap_isr {
     ($irq: ident, $module: ident$(::$rest: ident)*) => {
         #[naked]
@@ -60,7 +58,7 @@ pub struct LidtDesc {
 
 #[allow(dead_code)]
 #[repr(packed)]
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone)]
 pub struct IdtEntry {
     isr_low: u16,
     kernel_cs: u16,
@@ -69,40 +67,48 @@ pub struct IdtEntry {
     isr_high: u16,
 }
 
+impl Default for IdtEntry {
+    fn default() -> Self {
+        Self {
+            isr_low: (isr_default as *const usize) as u16,
+            // The entry of our CODE selector in GDT
+            kernel_cs: CODE_SELECTOR_OFFSET,
+            reserved: 0,
+            attributes: 0x8E,
+            isr_high: ((isr_default as *const usize as usize) >> 16) as u16,
+        }
+    }
+}
+
 pub fn init_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
+    const EXCEPTION_START: usize = 0x00;
+    const EXCEPTION_END: usize = 0x1F;
+    const KEYBOARD_IRQ: usize = 0x21;
     let mut entry: usize = 0;
     while entry < IDT_ENTRIES as usize {
-        if entry < 0x20 {
-            // 0x0..0x1F to exception handlers
-            idt[entry] = IdtEntry {
-                isr_low: (trap_default as *const usize) as u16,
-                // The entry of our CODE selector in GDT
-                kernel_cs: CODE_SELECTOR_OFFSET,
-                reserved: 0,
-                attributes: 0x8F,
-                isr_high: ((trap_default as *const usize as usize) >> 16) as u16,
-            };
-        } else if entry == 0x21 {
-            // Keyboard
-            idt[entry] = IdtEntry {
-                isr_low: (isr_0x21 as *const usize) as u16,
-                // The entry of our CODE selector in GDT
-                kernel_cs: CODE_SELECTOR_OFFSET,
-                reserved: 0,
-                attributes: 0x8E,
-                isr_high: ((isr_0x21 as *const usize as usize) >> 16) as u16,
-            };
-        } else {
-            // Rest interupt handlers
-            idt[entry] = IdtEntry {
-                isr_low: (isr_default as *const usize) as u16,
-                // The entry of our CODE selector in GDT
-                kernel_cs: CODE_SELECTOR_OFFSET,
-                reserved: 0,
-                attributes: 0x8E,
-                isr_high: ((isr_default as *const usize as usize) >> 16) as u16,
-            };
-        }
+        match entry {
+            EXCEPTION_START..=EXCEPTION_END => {
+                idt[entry] = IdtEntry {
+                    isr_low: (trap_default as *const usize) as u16,
+                    // The entry of our CODE selector in GDT
+                    kernel_cs: CODE_SELECTOR_OFFSET,
+                    reserved: 0,
+                    attributes: 0x8F,
+                    isr_high: ((trap_default as *const usize as usize) >> 16) as u16,
+                };
+            }
+            KEYBOARD_IRQ => {
+                idt[entry] = IdtEntry {
+                    isr_low: (isr_0x21 as *const usize) as u16,
+                    // The entry of our CODE selector in GDT
+                    kernel_cs: CODE_SELECTOR_OFFSET,
+                    reserved: 0,
+                    attributes: 0x8E,
+                    isr_high: ((isr_0x21 as *const usize as usize) >> 16) as u16,
+                };
+            }
+            _ => {}
+        };
         entry += 1;
     }
 
