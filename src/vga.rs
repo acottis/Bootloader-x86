@@ -1,8 +1,12 @@
-use core::{fmt::Write, ptr::write_volatile};
+use core::{
+    fmt::Write,
+    ptr::write_volatile,
+    sync::atomic::{AtomicIsize, Ordering},
+};
 
 const BUFFER: *mut u16 = 0xB8000 as *mut u16;
 const WIDTH: isize = 80;
-static mut OFFSET: isize = 0;
+static OFFSET: AtomicIsize = AtomicIsize::new(0);
 
 const BACKSPACE: u8 = 0x08;
 
@@ -33,25 +37,25 @@ impl Write for Vga {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         unsafe {
             for byte in s.bytes() {
+                let mut offset = OFFSET.load(Ordering::SeqCst);
                 match byte {
-                    b'\n' => {
-                        OFFSET += WIDTH - (OFFSET % WIDTH);
-                    }
+                    b'\n' => offset += WIDTH - (offset % WIDTH),
                     BACKSPACE => {
-                        OFFSET -= 1;
+                        offset -= 1;
                         write_volatile(
-                            BUFFER.offset(OFFSET),
+                            BUFFER.offset(offset),
                             (Colour::Black as u16) << 8 | byte as u16,
                         );
                     }
                     _ => {
                         write_volatile(
-                            BUFFER.offset(OFFSET),
+                            BUFFER.offset(offset),
                             (Colour::Green as u16) << 8 | byte as u16,
                         );
-                        OFFSET += 1;
+                        offset += 1;
                     }
-                }
+                };
+                OFFSET.store(offset, Ordering::SeqCst);
             }
         }
         Ok(())
