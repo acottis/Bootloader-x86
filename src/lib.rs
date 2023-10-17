@@ -39,48 +39,52 @@ struct IdtEntry {
     isr_high: u16,
 }
 
-#[no_mangle]
-unsafe extern "C" fn default_interrupt_handler() {
-    pic::end_of_interrupt();
+#[macro_export]
+macro_rules! isr {
+    ($irq:ident, $handler:ident) => {
+        #[naked]
+        unsafe extern "C" fn $irq() -> ! {
+            core::arch::asm!(
+                "pushad",
+                "call {}",
+                "popad",
+                "iretd",
+                sym $handler::isr,
+                options(noreturn)
+            );
+        }
+    };
 }
 
-#[no_mangle]
-unsafe extern "C" fn default_exception_handler() {
-    write_vga!("Error");
+#[macro_export]
+macro_rules! trap_isr {
+    ($irq:ident, $handler:ident) => {
+        #[naked]
+        unsafe extern "C" fn $irq() -> ! {
+            core::arch::asm!(
+                "pushad",
+                "call {}",
+                "popad",
+                "cli",
+                "hlt",
+                sym $handler::trap,
+                options(noreturn)
+            );
+        }
+    };
 }
 
-#[naked]
-unsafe extern "C" fn exception_handler() -> ! {
-    asm!(
-        "pushad",
-        "call default_exception_handler",
-        "popad",
-        "cli",
-        "hlt",
-        options(noreturn)
-    );
-}
+trap_isr!(trap_default, default);
+isr!(isr_default, default);
+isr!(isr_0x21, keyboard);
 
-#[naked]
-unsafe extern "C" fn interrupt_handler() -> ! {
-    asm!(
-        "pushad",
-        "call default_interrupt_handler",
-        "popad",
-        "iretd",
-        options(noreturn)
-    );
-}
-
-#[naked]
-unsafe extern "C" fn interrupt_handler0x21() -> ! {
-    asm!(
-        "pushad",
-        "call irq0x21",
-        "popad",
-        "iretd",
-        options(noreturn)
-    );
+mod default {
+    pub unsafe fn isr() {
+        crate::pic::end_of_interrupt();
+    }
+    pub unsafe fn trap() {
+        crate::write_vga!("Error");
+    }
 }
 
 fn print_stack(count: isize) {
@@ -98,32 +102,32 @@ unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
         if entry < 0x20 {
             // 0x0..0x1F to exception handlers
             idt[entry] = IdtEntry {
-                isr_low: (exception_handler as *const usize) as u16,
+                isr_low: (trap_default as *const usize) as u16,
                 // The entry of our CODE selector in GDT
                 kernel_cs: CODE_SELECTOR_OFFSET,
                 reserved: 0,
                 attributes: 0x8F,
-                isr_high: ((exception_handler as *const usize as usize) >> 16) as u16,
+                isr_high: ((trap_default as *const usize as usize) >> 16) as u16,
             };
         } else if entry == 0x21 {
             // Keyboard
             idt[entry] = IdtEntry {
-                isr_low: (interrupt_handler0x21 as *const usize) as u16,
+                isr_low: (isr_0x21 as *const usize) as u16,
                 // The entry of our CODE selector in GDT
                 kernel_cs: CODE_SELECTOR_OFFSET,
                 reserved: 0,
                 attributes: 0x8E,
-                isr_high: ((interrupt_handler0x21 as *const usize as usize) >> 16) as u16,
+                isr_high: ((isr_0x21 as *const usize as usize) >> 16) as u16,
             };
         } else {
             // Rest interupt handlers
             idt[entry] = IdtEntry {
-                isr_low: (interrupt_handler as *const usize) as u16,
+                isr_low: (isr_default as *const usize) as u16,
                 // The entry of our CODE selector in GDT
                 kernel_cs: CODE_SELECTOR_OFFSET,
                 reserved: 0,
                 attributes: 0x8E,
-                isr_high: ((interrupt_handler as *const usize as usize) >> 16) as u16,
+                isr_high: ((isr_default as *const usize as usize) >> 16) as u16,
             };
         }
         entry += 1;
