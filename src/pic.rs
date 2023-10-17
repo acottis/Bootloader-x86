@@ -1,6 +1,4 @@
-use core::arch::asm;
-
-use crate::cpu::{in8, out8};
+use crate::cpu::{cli, in8, out8, sti};
 
 const PIC1: u16 = 0x20;
 const PIC1_COMMAND: u16 = PIC1;
@@ -17,13 +15,13 @@ const ICW1_ICW4: u8 = 0x01;
 
 const ICW4_8086: u8 = 0x01;
 
-pub unsafe fn end_of_interrupt() {
+pub fn end_of_interrupt() {
     out8(PIC1_COMMAND, PIC_END_OF_INTERRUPT);
     out8(PIC2_COMMAND, PIC_END_OF_INTERRUPT);
 }
 
-pub unsafe fn init() {
-    asm!("cli");
+pub fn init() {
+    cli();
     // Save default mask
     let pic1_mask = in8(PIC1_DATA);
     let pic2_mask = in8(PIC2_DATA);
@@ -48,5 +46,5 @@ pub unsafe fn init() {
     // Use default masks
     out8(PIC1_DATA, pic1_mask);
     out8(PIC2_DATA, pic2_mask);
-    asm!("sti");
+    sti();
 }

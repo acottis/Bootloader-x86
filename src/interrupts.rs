@@ -1,3 +1,5 @@
+use crate::{cpu, pic::end_of_interrupt};
+
 pub const IDT_ENTRIES: u16 = 0xFF;
 const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
@@ -42,16 +44,16 @@ trap_isr!(trap_default, interrupts);
 isr!(isr_default, interrupts);
 isr!(isr_0x21, keyboard);
 
-pub unsafe fn isr() {
-    crate::pic::end_of_interrupt();
+pub fn isr() {
+    end_of_interrupt();
 }
-pub unsafe fn trap() {
+pub fn trap() {
     crate::write_vga!("Error");
 }
 
 #[allow(dead_code)]
 #[repr(packed)]
-struct LidtDesc {
+pub struct LidtDesc {
     limit: u16,
     base: u32,
 }
@@ -67,7 +69,7 @@ pub struct IdtEntry {
     isr_high: u16,
 }
 
-pub unsafe fn init_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
+pub fn init_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
     let mut entry: usize = 0;
     while entry < IDT_ENTRIES as usize {
         if entry < 0x20 {
@@ -109,5 +111,5 @@ pub unsafe fn init_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
         base: idt.as_ptr() as u32,
     };
 
-    core::arch::asm!("lidt [{}]", in(reg) &lidt_desc);
+    cpu::lidt(&lidt_desc);
 }
