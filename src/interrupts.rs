@@ -3,27 +3,9 @@ const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
 const CODE_SELECTOR_OFFSET: u16 = 8;
 
-#[allow(dead_code)]
-#[repr(C, packed)]
-struct LidtDesc {
-    limit: u16,
-    base: u32,
-}
-
-#[allow(dead_code)]
-#[repr(C, packed)]
-#[derive(Copy, Clone, Default)]
-pub struct IdtEntry {
-    isr_low: u16,
-    kernel_cs: u16,
-    reserved: u8,
-    attributes: u8,
-    isr_high: u16,
-}
-
 #[macro_export]
 macro_rules! isr {
-    ($irq:ident, $handler:ident) => {
+    ($irq:ident, $module:ident$(::$rest:ident)*) => {
         #[naked]
         unsafe extern "C" fn $irq() -> ! {
             core::arch::asm!(
@@ -31,7 +13,7 @@ macro_rules! isr {
                 "call {}",
                 "popad",
                 "iretd",
-                sym $crate::$handler::isr,
+                sym $crate::$module$(::$rest)*::isr,
                 options(noreturn)
             );
         }
@@ -40,7 +22,7 @@ macro_rules! isr {
 
 #[macro_export]
 macro_rules! trap_isr {
-    ($irq:ident, $handler:ident) => {
+    ($irq: ident, $module: ident$(::$rest: ident)*) => {
         #[naked]
         unsafe extern "C" fn $irq() -> ! {
             core::arch::asm!(
@@ -49,7 +31,7 @@ macro_rules! trap_isr {
                 "popad",
                 "cli",
                 "hlt",
-                sym $crate::$handler::trap,
+                sym $crate::$module$(::$rest)*::trap,
                 options(noreturn)
             );
         }
@@ -65,6 +47,24 @@ pub unsafe fn isr() {
 }
 pub unsafe fn trap() {
     crate::write_vga!("Error");
+}
+
+#[allow(dead_code)]
+#[repr(packed)]
+struct LidtDesc {
+    limit: u16,
+    base: u32,
+}
+
+#[allow(dead_code)]
+#[repr(packed)]
+#[derive(Copy, Clone, Default)]
+pub struct IdtEntry {
+    isr_low: u16,
+    kernel_cs: u16,
+    reserved: u8,
+    attributes: u8,
+    isr_high: u16,
 }
 
 pub unsafe fn init_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
