@@ -1,10 +1,9 @@
 use core::ptr::write_volatile;
 
-// VGA Stuff
 const BG_LIGHT_GREY: u8 = 0x07;
 const BUFFER: *mut u8 = 0xB8000 as *mut u8;
 const WIDTH: isize = 160;
-static mut VGA_OFFSET: isize = 0;
+static mut OFFSET: isize = 0;
 
 pub(crate) struct Vga;
 
@@ -13,12 +12,12 @@ impl core::fmt::Write for Vga {
         unsafe {
             for byte in s.bytes() {
                 if byte == b'\n' {
-                    VGA_OFFSET += WIDTH - (VGA_OFFSET % WIDTH);
+                    OFFSET += WIDTH - (OFFSET % WIDTH);
                     continue;
                 }
-                write_volatile(BUFFER.offset(VGA_OFFSET), byte);
-                write_volatile(BUFFER.offset(VGA_OFFSET + 1), BG_LIGHT_GREY);
-                VGA_OFFSET = VGA_OFFSET + 2;
+                write_volatile(BUFFER.offset(OFFSET), byte);
+                write_volatile(BUFFER.offset(OFFSET + 1), BG_LIGHT_GREY);
+                OFFSET = OFFSET + 2;
             }
         }
         Ok(())

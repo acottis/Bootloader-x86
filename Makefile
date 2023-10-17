@@ -19,7 +19,6 @@ rust: asm
 		-C codegen-units=1 \
 		-C strip=debuginfo \
 		--emit=obj \
-		-o target/rust.o \
-		--verbose
+		-o target/rust.o 
 	ld target/asm.o target/rust.o -T link.ld -m elf_i386 -nmagic -o target/boot.bin
 
