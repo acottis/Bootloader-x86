@@ -7,7 +7,7 @@ mkdir:
 	mkdir -p target
 
 asm: mkdir
-	nasm -felf32 boot.asm -o target/asm.o
+	nasm -felf32 asm/boot.asm -o target/asm.o
 
 rust: asm
 	rustc src/lib.rs \
