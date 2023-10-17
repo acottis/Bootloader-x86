@@ -32,6 +32,9 @@ const ICW1_ICW4: u8 = 0x01;
 
 const ICW4_8086: u8 = 0x01;
 
+/// KEYBOARD STUFF
+const KEYBOARD_PORT: u16 = 0x60;
+
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo<'_>) -> ! {
     write_vga!("Panic!");
@@ -57,25 +60,59 @@ struct IdtEntry {
 }
 
 #[no_mangle]
-unsafe extern "C" fn i() {
-    print_stack(20);
-    asm!("cli", "hlt");
+unsafe extern "C" fn default_interrupt_handler() {
+    pic_eoi();
+}
+
+const KEY_RETURN: u8 = 0x1C;
+
+const SCAN_CODE: [char; 5] = ['!', '!', '1', '2', '3'];
+
+#[no_mangle]
+unsafe extern "C" fn keyboard() {
+    let raw_key = in8(KEYBOARD_PORT);
+    let key = SCAN_CODE.get(raw_key as usize).unwrap_or(&'!');
+
+    write_vga!("{}", key);
     pic_eoi();
 }
 
 #[no_mangle]
-unsafe extern "C" fn e() {
+unsafe extern "C" fn default_exception_handler() {
     write_vga!("Error");
 }
 
 #[naked]
 unsafe extern "C" fn exception_handler() -> ! {
-    asm!("pushad", "call e", "popad", "cli", "hlt", options(noreturn));
+    asm!(
+        "pushad",
+        "call default_exception_handler",
+        "popad",
+        "cli",
+        "hlt",
+        options(noreturn)
+    );
 }
 
 #[naked]
 unsafe extern "C" fn interrupt_handler() -> ! {
-    asm!("pushad", "call i", "popad", "iretd", options(noreturn));
+    asm!(
+        "pushad",
+        "call default_interrupt_handler",
+        "popad",
+        "iretd",
+        options(noreturn)
+    );
+}
+#[naked]
+unsafe extern "C" fn interrupt_handler1() -> ! {
+    asm!(
+        "pushad",
+        "call keyboard",
+        "popad",
+        "iretd",
+        options(noreturn)
+    );
 }
 
 #[inline(always)]
@@ -138,6 +175,16 @@ unsafe fn setup_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
                 reserved: 0,
                 attributes: 0x8F,
                 isr_high: ((exception_handler as *const usize as usize) >> 16) as u16,
+            };
+        } else if entry == 0x21 {
+            // Keyboard
+            idt[entry] = IdtEntry {
+                isr_low: (interrupt_handler1 as *const usize) as u16,
+                // The entry of our CODE selector in GDT
+                kernel_cs: CODE_SELECTOR_OFFSET,
+                reserved: 0,
+                attributes: 0x8E,
+                isr_high: ((interrupt_handler1 as *const usize as usize) >> 16) as u16,
             };
         } else {
             // Rest interupt handlers
