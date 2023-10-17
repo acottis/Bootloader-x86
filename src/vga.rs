@@ -1,9 +1,31 @@
 use core::ptr::write_volatile;
 
-const BG_LIGHT_GREY: u8 = 0x07;
-const BUFFER: *mut u8 = 0xB8000 as *mut u8;
-const WIDTH: isize = 160;
+const BUFFER: *mut u16 = 0xB8000 as *mut u16;
+const WIDTH: isize = 80;
 static mut OFFSET: isize = 0;
+
+const BACKSPACE: u8 = 0x08;
+
+#[repr(u8)]
+#[allow(dead_code)]
+enum Colour {
+    Black,
+    Blue,
+    Green,
+    Cyan,
+    Red,
+    Magenta,
+    Brown,
+    White,
+    Gray,
+    LightBlue,
+    LightGreen,
+    LightCyan,
+    LightRed,
+    LightMagenta,
+    Yellow,
+    BrightWhite,
+}
 
 pub(crate) struct Vga;
 
@@ -11,13 +33,25 @@ impl core::fmt::Write for Vga {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         unsafe {
             for byte in s.bytes() {
-                if byte == b'\n' {
-                    OFFSET += WIDTH - (OFFSET % WIDTH);
-                    continue;
+                match byte {
+                    b'\n' => {
+                        OFFSET += WIDTH - (OFFSET % WIDTH);
+                    }
+                    BACKSPACE => {
+                        OFFSET -= 1;
+                        write_volatile(
+                            BUFFER.offset(OFFSET),
+                            (Colour::Black as u16) << 8 | byte as u16,
+                        );
+                    }
+                    _ => {
+                        write_volatile(
+                            BUFFER.offset(OFFSET),
+                            (Colour::Green as u16) << 8 | byte as u16,
+                        );
+                        OFFSET += 1;
+                    }
                 }
-                write_volatile(BUFFER.offset(OFFSET), byte);
-                write_volatile(BUFFER.offset(OFFSET + 1), BG_LIGHT_GREY);
-                OFFSET = OFFSET + 2;
             }
         }
         Ok(())
