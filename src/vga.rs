@@ -1,4 +1,4 @@
-use core::ptr::write_volatile;
+use core::{fmt::Write, ptr::write_volatile};
 
 const BUFFER: *mut u16 = 0xB8000 as *mut u16;
 const WIDTH: isize = 80;
@@ -29,7 +29,7 @@ enum Colour {
 
 pub(crate) struct Vga;
 
-impl core::fmt::Write for Vga {
+impl Write for Vga {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         unsafe {
             for byte in s.bytes() {
