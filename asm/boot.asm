@@ -16,13 +16,16 @@ real_entry:
     mov ax, 0x03
     int 0x10
 
-    ; Read next stage bootloader from disk
-    call read_disk
-
     ; Set A20
     in al, 0x92
     or al, 2
     out 0x92, al
+
+    call get_memory_map
+
+    ; Read next stage bootloader from disk
+    call read_disk
+    
     ; Load our Global Descriptor Table to disable segmentation memory management
     ; https://c9x.me/x86/html/file_module_x86_id_156.html
     lgdt [global_desc_table_desc]
@@ -36,6 +39,49 @@ real_entry:
     ; Jump to 32 bit mode with the code descriptor as cs cant be modified with mov
     ; https://stackoverflow.com/questions/23978486/far-jump-in-gdt-in-bootloader
     jmp (gdt_section_code - global_desc_table_base):pm_entry
+
+get_memory_map:
+
+.first_run
+    mov di, memory_map; Give me memory_map entries to this address
+    xor ebx, ebx; Dunno
+
+    mov edx, "PAMS" ; Magic
+    mov eax, 0xE820 ; Function name
+    mov [es:di + 20], dword 1
+    mov ecx, 24 ; Ask for 24 bytes
+    int 0x15
+
+    ; Error
+    jc short .end_get_memory_map
+
+    ; Check for end
+    test ebx, ebx
+    je .end_get_memory_map
+
+    ; Do while cl != 0 (CL is the returned bytes)
+    jcxz .end_get_memory_map
+
+    cmp cl, 20
+    jne .end_get_memory_map
+
+.loop:
+    add di, 24
+    ;xor ebx, ebx; Dunno
+
+    mov edx, "PAMS" ; Magic
+    mov eax, 0xE820 ; Function name
+    mov [es:di + 20], dword 1
+    mov ecx, 24 ; Ask for 24 bytes
+    int 0x15
+
+    ; Check for end
+    test ebx, ebx
+    jne .loop
+
+
+.end_get_memory_map:
+    ret
 
 read_disk:
      ; Load the additional bootloader code from disk
@@ -107,5 +153,10 @@ pm_entry:
     ;mov eax, 0x07690748
     ;mov [0x0B8000], eax
     mov esp, 0x7C00
+
+    ; Pass memory mem_map address to rust
+    push memory_map
     call entry
 
+; Reserve space for entries in the memory map
+memory_map: equ 0x1000

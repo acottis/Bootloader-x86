@@ -23,8 +23,13 @@ fn print_stack(count: isize) {
 }
 
 #[no_mangle]
-fn entry() {
+fn entry(memory_map: u32) {
     write_vga!("Rust Entry ESP:{:X}\n", cpu::esp());
+
+    unsafe {
+        let map = *(memory_map as *const [u32; 20]);
+        write_vga!("{map:X?}");
+    }
 
     let mut idt = [interrupts::IdtEntry::default(); interrupts::IDT_ENTRIES as usize];
     interrupts::init_idt(&mut idt);
