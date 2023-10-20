@@ -80,7 +80,7 @@ impl Default for IdtEntry {
     }
 }
 
-pub fn init_idt(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
+pub fn init(idt: &mut [IdtEntry; IDT_ENTRIES as usize]) {
     const EXCEPTION_START: usize = 0x00;
     const EXCEPTION_END: usize = 0x1F;
     const KEYBOARD_IRQ: usize = 0x21;

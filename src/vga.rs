@@ -31,7 +31,7 @@ enum Colour {
     BrightWhite,
 }
 
-pub(crate) struct Vga;
+pub struct Vga;
 
 impl Write for Vga {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
@@ -65,6 +65,6 @@ impl Write for Vga {
 #[macro_export]
 macro_rules! write_vga {
     ($($arg:tt)*) => {
-        _ = core::fmt::Write::write_fmt(&mut $crate::vga::Vga, format_args!($($arg)*));
+         _ = core::fmt::Write::write_fmt(&mut $crate::vga::Vga, core::format_args!($($arg)*));
     };
 }

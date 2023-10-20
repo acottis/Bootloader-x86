@@ -4,13 +4,16 @@
 
 mod cpu;
 mod interrupts;
+mod intrinsics;
 mod keyboard;
+mod mm;
 mod pic;
 mod vga;
 
 #[panic_handler]
-fn panic_handler(_info: &core::panic::PanicInfo<'_>) -> ! {
-    write_vga!("Panic!");
+#[no_mangle]
+fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
+    write_vga!("{:?}", info);
     loop {}
 }
 
@@ -25,14 +28,10 @@ fn print_stack(count: isize) {
 #[no_mangle]
 fn entry(memory_map: u32) {
     write_vga!("Rust Entry ESP:{:X}\n", cpu::esp());
-
-    unsafe {
-        let map = *(memory_map as *const [u32; 20]);
-        write_vga!("{map:X?}");
-    }
+    mm::parse(memory_map);
 
     let mut idt = [interrupts::IdtEntry::default(); interrupts::IDT_ENTRIES as usize];
-    interrupts::init_idt(&mut idt);
+    interrupts::init(&mut idt);
     pic::init();
 
     loop {

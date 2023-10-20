@@ -42,9 +42,8 @@ real_entry:
 
 get_memory_map:
 
-.first_run
+.first_run:
     mov di, memory_map; Give me memory_map entries to this address
-    xor ebx, ebx; Dunno
 
     mov edx, "PAMS" ; Magic
     mov eax, 0xE820 ; Function name
@@ -57,17 +56,16 @@ get_memory_map:
 
     ; Check for end
     test ebx, ebx
-    je .end_get_memory_map
+    je short .end_get_memory_map
 
     ; Do while cl != 0 (CL is the returned bytes)
     jcxz .end_get_memory_map
 
-    cmp cl, 20
-    jne .end_get_memory_map
+    ;cmp cl, 20
+    ;jne .end_get_memory_map
 
 .loop:
     add di, 24
-    ;xor ebx, ebx; Dunno
 
     mov edx, "PAMS" ; Magic
     mov eax, 0xE820 ; Function name
@@ -77,8 +75,7 @@ get_memory_map:
 
     ; Check for end
     test ebx, ebx
-    jne .loop
-
+    jne short .loop
 
 .end_get_memory_map:
     ret
