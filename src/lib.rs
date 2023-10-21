@@ -26,9 +26,7 @@ fn entry(memory_map_base_addr: u32) {
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");
 
-    let mut idt =
-        [interrupts::IdtEntry::default(); interrupts::IDT_ENTRIES as usize];
-    interrupts::init(&mut idt);
+    interrupts::init();
     pic::init();
 
     let mut foo = vec![1u8, 2, 3, 4, 5];
