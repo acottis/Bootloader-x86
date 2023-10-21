@@ -63,8 +63,15 @@ impl Write for Vga {
 }
 
 #[macro_export]
-macro_rules! write_vga {
+macro_rules! print {
     ($($arg:tt)*) => {
-         _ = core::fmt::Write::write_fmt(&mut $crate::vga::Vga, core::format_args!($($arg)*));
+         _ = core::fmt::write(&mut $crate::vga::Vga, core::format_args!($($arg)*));
+    };
+}
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => {
+         _ = core::fmt::write(&mut $crate::vga::Vga, core::format_args!($($arg)*));
+         _ = core::fmt::write(&mut $crate::vga::Vga, core::format_args!("\n"));
     };
 }

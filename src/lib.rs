@@ -2,6 +2,9 @@
 #![no_main]
 #![feature(naked_functions)]
 
+extern crate alloc;
+use alloc::{string::String, *};
+
 mod cpu;
 mod interrupts;
 mod intrinsics;
@@ -11,29 +14,35 @@ mod pic;
 mod vga;
 
 #[panic_handler]
-#[no_mangle]
 fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
-    write_vga!("{:?}", info);
+    println!("{:?}", info);
     loop {}
 }
 
-fn print_stack(count: isize) {
-    let stack_ptr = cpu::esp() as *const u32;
-    for offset in 0..count {
-        let value = unsafe { *stack_ptr.offset(offset) };
-        crate::write_vga!("ESP+{}: {:X}\n", offset * 4, value);
-    }
-}
+#[export_name = "entry"]
+fn entry(memory_map_base_addr: u32) {
+    println!("Rust Entry ESP:{:X}\n", cpu::esp());
 
-#[no_mangle]
-fn entry(memory_map: u32) {
-    write_vga!("Rust Entry ESP:{:X}\n", cpu::esp());
-    mm::parse(memory_map);
+    mm::init(memory_map_base_addr)
+        .expect("Failed to find suitable memory region for allocator");
 
-    let mut idt = [interrupts::IdtEntry::default(); interrupts::IDT_ENTRIES as usize];
+    let mut idt =
+        [interrupts::IdtEntry::default(); interrupts::IDT_ENTRIES as usize];
     interrupts::init(&mut idt);
     pic::init();
 
+    let mut foo = vec![1u8, 2, 3, 4, 5];
+    let mut bar = vec![1u32, 2, 3, 4, 5];
+    let mut baz = String::from("haha");
+
+    println!("{:X}", baz.as_mut_ptr() as u32);
+    println!("{:X}", foo.as_mut_ptr() as u32);
+    println!("{:X}", bar.as_mut_ptr() as u32);
+    println!("{}", baz);
+
+    unsafe {
+        println!("{:?}", *(0x100000 as *const [u8; 80]));
+    }
     loop {
         cpu::halt();
     }

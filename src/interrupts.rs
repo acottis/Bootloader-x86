@@ -46,7 +46,7 @@ pub fn isr() {
     end_of_interrupt();
 }
 pub fn trap() {
-    crate::write_vga!("Error");
+    crate::println!("Error");
 }
 
 #[allow(dead_code)]
