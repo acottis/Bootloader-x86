@@ -94,24 +94,22 @@ pub fn init() {
             match entry {
                 EXCEPTION_START..=EXCEPTION_END => {
                     (*IDT)[entry] = IdtEntry {
-                        isr_low: (trap_default as *const usize) as u16,
+                        isr_low: trap_default as u16,
                         // The entry of our CODE selector in GDT
                         kernel_cs: CODE_SELECTOR_OFFSET,
                         reserved: 0,
                         attributes: 0x8F,
-                        isr_high: ((trap_default as *const usize as usize)
-                            >> 16) as u16,
+                        isr_high: (trap_default as u32 >> 16) as u16,
                     };
                 }
                 KEYBOARD_IRQ => {
                     (*IDT)[entry] = IdtEntry {
-                        isr_low: (isr_0x21 as *const usize) as u16,
+                        isr_low: isr_0x21 as u16,
                         // The entry of our CODE selector in GDT
                         kernel_cs: CODE_SELECTOR_OFFSET,
                         reserved: 0,
                         attributes: 0x8E,
-                        isr_high: ((isr_0x21 as *const usize as usize) >> 16)
-                            as u16,
+                        isr_high: (isr_0x21 as u32 >> 16) as u16,
                     };
                 }
                 _ => (*IDT)[entry] = IdtEntry::default(),
