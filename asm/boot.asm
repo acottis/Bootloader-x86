@@ -154,6 +154,6 @@ pm_entry:
     ; Pass memory mem_map address to rust
     push memory_map
     call entry
-
+    
 ; Reserve space for entries in the memory map
 memory_map: equ 0x1000

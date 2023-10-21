@@ -3,11 +3,10 @@
 #![feature(naked_functions)]
 
 extern crate alloc;
-use alloc::{string::String, *};
+use alloc::{string::String, vec::Vec, *};
 
 mod cpu;
 mod interrupts;
-mod intrinsics;
 mod keyboard;
 mod mm;
 mod pic;
@@ -16,11 +15,13 @@ mod vga;
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
     println!("{:?}", info);
-    loop {}
+    loop {
+        cpu::halt();
+    }
 }
 
-#[export_name = "entry"]
-fn entry(memory_map_base_addr: u32) {
+#[no_mangle]
+pub fn entry(memory_map_base_addr: u32) {
     println!("Rust Entry ESP:{:X}", cpu::esp());
 
     mm::init(memory_map_base_addr)
@@ -29,8 +30,8 @@ fn entry(memory_map_base_addr: u32) {
     interrupts::init();
     pic::init();
 
-    let mut foo = vec![1u8, 2, 3, 4, 5];
-    let mut bar = vec![1u32, 2, 3, 4, 5];
+    let mut foo: Vec<u8> = vec![1, 2, 3, 4, 5];
+    let mut bar: Vec<u8> = vec![1, 2, 3, 4, 5];
     let mut baz = String::from("haha");
 
     println!("{:X}", baz.as_mut_ptr() as u32);
