@@ -61,7 +61,7 @@ pub struct LidtDesc {
 
 #[allow(dead_code)]
 #[repr(packed)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 struct IdtEntry {
     isr_low: u16,
     kernel_cs: u16,

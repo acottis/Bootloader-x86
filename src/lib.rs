@@ -21,7 +21,7 @@ fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
 
 #[export_name = "entry"]
 fn entry(memory_map_base_addr: u32) {
-    println!("Rust Entry ESP:{:X}\n", cpu::esp());
+    println!("Rust Entry ESP:{:X}", cpu::esp());
 
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");

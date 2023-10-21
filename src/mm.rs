@@ -32,7 +32,6 @@ unsafe impl GlobalAlloc for GlobalAllocator {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
 struct Entry {
     base_addr: u64,
     length: u64,

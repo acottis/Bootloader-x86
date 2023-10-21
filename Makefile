@@ -1,7 +1,7 @@
 default: run
 
 run: rust
-	qemu-system-x86_64 -hda target/boot.bin -boot order=c -m 50M
+	qemu-system-i386 -hda target/boot.bin -boot order=c -m 50M
 
 mkdir:
 	mkdir -p target
