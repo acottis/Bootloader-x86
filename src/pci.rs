@@ -8,6 +8,35 @@ const FUNCTIONS: u8 = 7;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+enum ClassCode {
+    Unclassified = 0x00,
+    MassStorageController,
+    NetworkController,
+    DisplayController,
+    MultumediaController,
+    MemoryController,
+    Bridge,
+    SimpleCommunicationController,
+    InputDeviceController,
+    DockingStation,
+    Processor,
+    SerialBusController,
+    WirelessController,
+    IntelligentController,
+    SatelliteCommunicationController,
+    EncryptionController,
+    SignalProcessingController,
+    ProcessingAccelerator,
+    NonEssentialInstrumentationator,
+    Reserved0x3F,
+    CoProcessor = 0x40,
+    Reserved0xFE,
+    UnassignedClass = 0xFF,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 struct Header {
     vendor_id: u16,
@@ -17,7 +46,7 @@ struct Header {
     revision_id: u8,
     prog_if: u8,
     subclass: u8,
-    class_code: u8,
+    class_code: ClassCode,
     cache_line_size: u8,
     latency_timer: u8,
     header_type: u8,
