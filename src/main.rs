@@ -4,17 +4,20 @@
 
 extern crate alloc;
 
+#[macro_use]
+mod vga;
+
+mod acpi;
 mod cpu;
 mod instrinsics;
 mod interrupts;
 mod keyboard;
 mod mm;
 mod pic;
-mod vga;
 
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
-    println!("{:?}", info);
+    print!("{}", info);
     loop {
         cpu::halt();
     }
@@ -28,6 +31,7 @@ pub fn entry(memory_map_base_addr: u32) {
         .expect("Failed to find suitable memory region for allocator");
     interrupts::init();
     pic::init();
+    acpi::init();
 
     loop {
         cpu::halt();
