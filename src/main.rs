@@ -6,6 +6,7 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec, *};
 
 mod cpu;
+mod instrinsics;
 mod interrupts;
 mod keyboard;
 mod mm;
@@ -27,17 +28,12 @@ pub fn entry(memory_map_base_addr: u32) {
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");
 
+    let t = Vec::from([b'A' as u64; 500]);
+    crate::println!("{}", t[40]);
+
     interrupts::init();
     pic::init();
 
-    let mut foo: Vec<u32> = vec![1, 4, 59, 60];
-    println!("{:X}", foo.as_mut_ptr() as u32);
-    println!("{:X?}", foo);
-
-    unsafe {
-        let alloc_place = foo.as_ptr();
-        println!("{:?}", *(alloc_place as *const [u8; 80]));
-    }
     loop {
         cpu::halt();
     }

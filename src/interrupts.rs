@@ -29,9 +29,7 @@ macro_rules! trap_isr {
         #[naked]
         unsafe extern "C" fn $irq() -> ! {
             core::arch::asm!(
-                "pushad",
                 "call {}",
-                "popad",
                 "cli",
                 "hlt",
                 sym $crate::$module$(::$rest)*::trap,
@@ -49,7 +47,7 @@ pub fn isr() {
     end_of_interrupt();
 }
 pub fn trap() {
-    crate::println!("Error");
+    crate::println!("Exception");
 }
 
 #[allow(dead_code)]

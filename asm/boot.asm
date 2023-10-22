@@ -25,7 +25,7 @@ real_entry:
 
     ; Read next stage bootloader from disk
     call read_disk
-    
+
     ; Load our Global Descriptor Table to disable segmentation memory management
     ; https://c9x.me/x86/html/file_module_x86_id_156.html
     lgdt [global_desc_table_desc]

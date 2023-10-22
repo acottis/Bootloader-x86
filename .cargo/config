@@ -1,5 +1,5 @@
 [build]
-target = "i686-unknown-linux-gnu"
+target = "i586-unknown-linux-gnu"
 
 rustflags = [
     "-Crelocation-model=static",

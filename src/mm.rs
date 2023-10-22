@@ -29,19 +29,14 @@ unsafe impl GlobalAlloc for GlobalAllocator {
             .remaining
             .fetch_update(SeqCst, SeqCst, |mut remaining| {
                 remaining -= layout.size();
-                alloc_base = remaining & !layout.align() + 1;
-                crate::println!(
-                    "{:?}, {:X?}, {:X?}",
-                    layout,
-                    alloc_base,
-                    remaining
-                );
+                alloc_base = remaining & (!layout.align() - 1);
                 Some(alloc_base)
             })
             .is_err()
         {
             return core::ptr::null_mut();
         }
+
         (*self.arena.get()).add(alloc_base)
     }
 
@@ -63,6 +58,9 @@ pub fn init(memory_map: u32) -> Result<(), ()> {
 
         let mut largest_entry: Option<&Entry> = None;
         for entry in entries.iter() {
+            //            if entry.r#type != 0 {
+            //                crate::println!("{:X?}", entry);
+            //            }
             if entry.r#type != 1 {
                 continue;
             }
