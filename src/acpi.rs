@@ -18,28 +18,49 @@ struct RSDP {
 impl RSDP {
     const MAGIC: &'static str = "RSD PTR ";
 
-    fn handle(ptr: usize) {
-        let rdsp = unsafe { *(ptr as *const RSDP) };
-        rdsp.checksum();
+    fn new() -> Self {
+        let rsdp_ptr = RSDP::find().expect("No RSDP Found");
+        let rsdp = unsafe { *(rsdp_ptr as *const RSDP) };
+        rsdp.checksum(rsdp_ptr);
+
+        rsdp
     }
 
-    fn checksum(&self) {
-        println!("{self:#X?}");
+    fn find() -> Option<usize> {
+        for offset in (EBDA_START..EBDA_END).step_by(16) {
+            let bytes = unsafe { *(offset as *const [u8; 8]) };
+            if &bytes == RSDP::MAGIC.as_bytes() {
+                return Some(offset);
+            }
+        }
+        for offset in (REGION2_START..REGION2_END).step_by(16) {
+            let bytes = unsafe { *(offset as *const [u8; 8]) };
+            if &bytes == RSDP::MAGIC.as_bytes() {
+                return Some(offset);
+            }
+        }
+        None
+    }
+
+    fn checksum(&self, ptr: usize) {
+        if self.revision != 0 {
+            unimplemented!("Checksum for RSDP version {}", self.revision);
+        }
+
+        let raw_rsdp =
+            unsafe { *(ptr as *const [u8; core::mem::size_of::<RSDP>()]) };
+
+        let struct_bytes_sum = raw_rsdp
+            .iter()
+            .fold(0, |acc, byte| u8::wrapping_add(acc, *byte));
+        if struct_bytes_sum != 0 {
+            panic!("RDSP Checksum returned {}, should be 0", struct_bytes_sum);
+        }
     }
 }
 
 pub fn init() {
-    println!("Looking for {:X?}", b"RSD PTR ");
-    for offset in (EBDA_START..EBDA_END).step_by(16) {
-        let bytes = unsafe { *(offset as *const [u8; 8]) };
-        if &bytes == RSDP::MAGIC.as_bytes() {
-            RSDP::handle(offset);
-        }
-    }
-    for offset in (REGION2_START..REGION2_END).step_by(16) {
-        let bytes = unsafe { *(offset as *const [u8; 8]) };
-        if &bytes == RSDP::MAGIC.as_bytes() {
-            RSDP::handle(offset);
-        }
-    }
+    let rsdp = RSDP::new();
+
+    println!("{rsdp:X?}");
 }

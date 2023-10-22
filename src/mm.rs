@@ -5,20 +5,20 @@ use core::{
 };
 
 #[derive(Debug)]
-struct GlobalAllocator {
+struct Allocator {
     arena: UnsafeCell<*mut u8>,
     remaining: AtomicUsize,
 }
 
 #[global_allocator]
-static mut GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator {
+static mut GLOBAL_ALLOCATOR: Allocator = Allocator {
     arena: UnsafeCell::new(core::ptr::null_mut()),
     remaining: AtomicUsize::new(0),
 };
 
-unsafe impl Sync for GlobalAllocator {}
+unsafe impl Sync for Allocator {}
 
-unsafe impl GlobalAlloc for GlobalAllocator {
+unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         if layout.align() == 0 {
             return core::ptr::null_mut();

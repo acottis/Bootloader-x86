@@ -23,8 +23,8 @@ fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
     }
 }
 
-#[no_mangle]
-pub fn entry(memory_map_base_addr: u32) {
+#[export_name = "entry"]
+fn entry(memory_map_base_addr: u32) {
     println!("Rust Entry ESP:{:X}", cpu::esp());
 
     mm::init(memory_map_base_addr)

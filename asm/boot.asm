@@ -61,9 +61,6 @@ get_memory_map:
     ; Do while cl != 0 (CL is the returned bytes)
     jcxz .end_get_memory_map
 
-    ;cmp cl, 20
-    ;jne .end_get_memory_map
-
 .loop:
     add di, 24
 
