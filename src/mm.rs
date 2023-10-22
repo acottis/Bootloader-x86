@@ -7,25 +7,42 @@ use core::{
 #[derive(Debug)]
 struct GlobalAllocator {
     arena: UnsafeCell<*mut u8>,
-    ptr: AtomicUsize,
+    remaining: AtomicUsize,
 }
 
 #[global_allocator]
 static mut GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator {
     arena: UnsafeCell::new(core::ptr::null_mut()),
-    ptr: AtomicUsize::new(0),
+    remaining: AtomicUsize::new(0),
 };
 
 unsafe impl Sync for GlobalAllocator {}
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        let allocation_start = self
-            .ptr
-            .fetch_update(SeqCst, SeqCst, |ptr| Some(ptr + layout.size()))
-            .unwrap();
-        crate::println!("{:?}, {:X?}", layout, allocation_start as u32);
-        (*self.arena.get()).add(allocation_start)
+        if layout.align() == 0 {
+            return core::ptr::null_mut();
+        }
+
+        let mut alloc_base = 0;
+        if self
+            .remaining
+            .fetch_update(SeqCst, SeqCst, |mut remaining| {
+                remaining -= layout.size();
+                alloc_base = remaining & !layout.align() + 1;
+                crate::println!(
+                    "{:?}, {:X?}, {:X?}",
+                    layout,
+                    alloc_base,
+                    remaining
+                );
+                Some(alloc_base)
+            })
+            .is_err()
+        {
+            return core::ptr::null_mut();
+        }
+        (*self.arena.get()).add(alloc_base)
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {}
@@ -61,6 +78,9 @@ pub fn init(memory_map: u32) -> Result<(), ()> {
         match largest_entry {
             Some(entry) => {
                 *GLOBAL_ALLOCATOR.arena.get_mut() = entry.base_addr as *mut u8;
+                GLOBAL_ALLOCATOR
+                    .remaining
+                    .store(entry.length as usize, SeqCst);
                 Ok(())
             }
             None => Err(()),

@@ -30,17 +30,13 @@ pub fn entry(memory_map_base_addr: u32) {
     interrupts::init();
     pic::init();
 
-    let mut foo: Vec<u8> = vec![1, 2, 3, 4, 5];
-    let mut bar: Vec<u8> = vec![1, 2, 3, 4, 5];
-    let mut baz = String::from("haha");
-
-    println!("{:X}", baz.as_mut_ptr() as u32);
+    let mut foo: Vec<u32> = vec![1, 4, 59, 60];
     println!("{:X}", foo.as_mut_ptr() as u32);
-    println!("{:X}", bar.as_mut_ptr() as u32);
-    println!("{}", baz);
+    println!("{:X?}", foo);
 
     unsafe {
-        println!("{:?}", *(0x100000 as *const [u8; 80]));
+        let alloc_place = foo.as_ptr();
+        println!("{:?}", *(alloc_place as *const [u8; 80]));
     }
     loop {
         cpu::halt();
