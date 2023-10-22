@@ -6,10 +6,24 @@ pub fn out8(port: u16, value: u8) {
 }
 
 #[inline(always)]
+pub fn out32(port: u16, value: u32) {
+    unsafe { asm!("out dx, eax", in("eax") value, in("dx") port) }
+}
+
+#[inline(always)]
 pub fn in8(port: u16) -> u8 {
     unsafe {
         let value: u8;
         asm!("in al, dx", out("al") value, in("dx") port);
+        value
+    }
+}
+
+#[inline(always)]
+pub fn in32(port: u16) -> u32 {
+    unsafe {
+        let value: u32;
+        asm!("in eax, dx", out("eax") value, in("dx") port);
         value
     }
 }

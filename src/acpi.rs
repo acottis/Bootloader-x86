@@ -118,8 +118,6 @@ pub fn init() {
         (rsdt.acpi_sdt_header.length as usize - size_of::<AcpiSdtHeader>()) / 4;
 
     for entry in 0..entries {
-        let h = unsafe { *(rsdt.std_ptrs[entry] as *const AcpiSdtHeader) };
-        println!("{h:X?}");
-        println!("{:?}", core::str::from_utf8(&h.signature));
+        _ = unsafe { *(rsdt.std_ptrs[entry] as *const AcpiSdtHeader) };
     }
 }
