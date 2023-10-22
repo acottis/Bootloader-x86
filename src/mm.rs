@@ -29,7 +29,7 @@ unsafe impl GlobalAlloc for Allocator {
             .remaining
             .fetch_update(SeqCst, SeqCst, |mut remaining| {
                 remaining -= layout.size();
-                alloc_base = remaining & (!layout.align() - 1);
+                alloc_base = remaining & !layout.align() + 1;
                 Some(alloc_base)
             })
             .is_err()

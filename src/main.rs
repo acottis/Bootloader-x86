@@ -9,6 +9,7 @@ mod vga;
 
 mod acpi;
 mod cpu;
+mod error;
 mod instrinsics;
 mod interrupts;
 mod keyboard;
