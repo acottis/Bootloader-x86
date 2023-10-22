@@ -2,6 +2,6 @@
 
 
 # TODO
-* Fix alignment
+* ~Fix alignment~
 * Better error exceptions
 * PCI/ACPI

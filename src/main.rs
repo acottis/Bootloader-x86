@@ -3,7 +3,6 @@
 #![feature(naked_functions)]
 
 extern crate alloc;
-use alloc::{string::String, vec::Vec, *};
 
 mod cpu;
 mod instrinsics;
@@ -27,10 +26,6 @@ pub fn entry(memory_map_base_addr: u32) {
 
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");
-
-    let t = Vec::from([b'A' as u64; 500]);
-    crate::println!("{}", t[40]);
-
     interrupts::init();
     pic::init();
 

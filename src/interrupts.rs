@@ -43,10 +43,10 @@ trap_isr!(trap_default, interrupts);
 isr!(isr_default, interrupts);
 isr!(isr_0x21, keyboard);
 
-pub fn isr() {
+fn isr() {
     end_of_interrupt();
 }
-pub fn trap() {
+fn trap() {
     crate::println!("Exception");
 }
 
