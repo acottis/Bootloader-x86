@@ -42,6 +42,7 @@ macro_rules! trap_isr {
 trap_isr!(trap_default, interrupts);
 isr!(isr_default, interrupts);
 isr!(isr_0x21, keyboard);
+isr!(isr_0x2b, nic);
 
 fn isr() {
     end_of_interrupt();
@@ -108,6 +109,17 @@ pub fn init() {
                         reserved: 0,
                         attributes: 0x8E,
                         isr_high: (isr_0x21 as u32 >> 16) as u16,
+                    };
+                }
+                _ => (*IDT)[entry] = IdtEntry::default(),
+                NIC_IRQ => {
+                    (*IDT)[entry] = IdtEntry {
+                        isr_low: isr_0x2b as u16,
+                        // The entry of our CODE selector in GDT
+                        kernel_cs: CODE_SELECTOR_OFFSET,
+                        reserved: 0,
+                        attributes: 0x8E,
+                        isr_high: (isr_0x2b as u32 >> 16) as u16,
                     };
                 }
                 _ => (*IDT)[entry] = IdtEntry::default(),

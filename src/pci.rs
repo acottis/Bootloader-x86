@@ -1,15 +1,39 @@
 use core::mem::size_of;
 
+use alloc::vec::Vec;
+
 use crate::cpu;
 
 const BUSES: u8 = 255;
 const SLOTS: u8 = 31;
 const FUNCTIONS: u8 = 7;
 
-#[allow(dead_code)]
+#[repr(u16)]
+pub enum Vendor {
+    Intel = 0x8086,
+}
+
 #[derive(Debug, Clone, Copy)]
+struct BaseAddress(u32);
+
+impl BaseAddress {
+    fn is_mmio(&self) -> bool {
+        if self.0 & 1 == 1 {
+            false
+        } else {
+            true
+        }
+    }
+
+    fn ty(&self) -> u8 {
+        (self.0 & 0b0110) as u8
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-enum ClassCode {
+pub enum ClassCode {
     Unclassified = 0x00,
     MassStorageController,
     NetworkController,
@@ -38,25 +62,20 @@ enum ClassCode {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
-struct Header {
-    vendor_id: u16,
-    device_id: u16,
+pub struct Header {
+    pub vendor_id: u16,
+    pub device_id: u16,
     command: u16,
     status: u16,
     revision_id: u8,
     prog_if: u8,
     subclass: u8,
-    class_code: ClassCode,
+    pub class_code: ClassCode,
     cache_line_size: u8,
     latency_timer: u8,
     header_type: u8,
     bist: u8,
-    base_addr_0: u32,
-    base_addr_1: u32,
-    base_addr_2: u32,
-    base_addr_3: u32,
-    base_addr_4: u32,
-    base_addr_5: u32,
+    base_addrs: [BaseAddress; 5],
     cardbus_cis_ptr: u32,
     subsystem_vendor_id: u16,
     subsystem_id: u16,
@@ -77,7 +96,7 @@ impl Header {
     const DID_VID_OFFSET: u8 = 0;
 
     fn new(bus: u8, slot: u8, function: u8) -> Self {
-        let mut buffer = [0u32; size_of::<Self>() / 4];
+        let mut buffer = [0u32; size_of::<Self>() / size_of::<u32>()];
 
         for (i, bytes) in buffer.iter_mut().enumerate() {
             *bytes = Self::read32(bus, slot, function, i as u8 * 4);
@@ -89,7 +108,7 @@ impl Header {
     }
 
     fn read32(bus: u8, slot: u8, function: u8, offset: u8) -> u32 {
-        // Request info about PCI dev
+        // Request info about PCI Device Header
         let request: u32 = Self::ENABLE_BIT
             | (bus as u32) << 16
             | (slot as u32) << 11
@@ -102,29 +121,26 @@ impl Header {
     }
 }
 
-pub fn init() {
+fn get_devices() -> Vec<Header> {
+    let mut devices: Vec<Header> = Vec::new();
     for bus in 0..=BUSES {
         for slot in 0..=SLOTS {
             for function in 0..=FUNCTIONS {
                 let did_vid =
                     Header::read32(bus, slot, function, Header::DID_VID_OFFSET);
                 let vendor = (did_vid >> 0) as u16;
+
                 if vendor == !0 {
                     continue;
                 }
 
-                let device = Header::new(bus, slot, function);
-                println!("{:X?}", device.class_code);
+                devices.push(Header::new(bus, slot, function));
             }
         }
     }
+    devices
 }
 
-//fn check_vendor(bus: u8, slot: u8) {
-//    /* Try and read the first configuration register. Since there are no
-//     * vendors that == 0xFFFF, it must be a non-existent device. */
-//    if ((vendor = pciConfigReadWord(bus, slot, 0, 0)) != 0xFFFF) {
-//       device = pciConfigReadWord(bus, slot, 0, 2);
-//       . . .
-//    } return (vendor);
-//}
+pub fn init() -> Vec<Header> {
+    get_devices()
+}

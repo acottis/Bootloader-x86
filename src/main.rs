@@ -14,6 +14,7 @@ mod instrinsics;
 mod interrupts;
 mod keyboard;
 mod mm;
+mod nic;
 mod pci;
 mod pic;
 
@@ -33,7 +34,8 @@ fn entry(memory_map_base_addr: u32) {
         .expect("Failed to find suitable memory region for allocator");
     interrupts::init();
     pic::init();
-    pci::init();
+    let devices = pci::init();
+    nic::init(&devices);
     acpi::init();
 
     loop {
