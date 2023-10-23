@@ -1,0 +1,28 @@
+#!/bin/bash
+
+BRIDGE_NAME=virtbr0
+TAP_NAME=virttap0
+IF_TO_BRIDGE=enp0s31f6
+MY_IP=192.168.1.67/24
+ROUTER=192.168.1.254
+USER=adam
+
+# Create bridge
+ip link add ${BRIDGE_NAME} type bridge
+# Create tap that ${USER} can use without sudo
+ip tuntap add dev ${TAP_NAME} mode tap user ${USER}
+# Set the tap to use bridge as router
+ip link set dev ${TAP_NAME} master ${BRIDGE_NAME}   
+# Set our REAL nic to use bridge as router
+ip link set dev ${IF_TO_BRIDGE} master ${BRIDGE_NAME}
+
+# enable bridge 
+ip link set dev ${BRIDGE_NAME} up
+# enable tap
+ip link set dev ${TAP_NAME} up
+
+# WARNING!!!!!! Remove IP Address from the REAL nic
+ip addr flush dev ${IF_TO_BRIDGE}
+
+# Dhcp an IP for our bridge (our REAL NIC goes via the bridge now)
+dhclient ${BRIDGE_NAME}

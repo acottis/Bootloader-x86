@@ -11,29 +11,36 @@ const FUNCTIONS: u8 = 7;
 #[repr(u16)]
 pub enum Vendor {
     Intel = 0x8086,
+    Unknown(u16),
 }
-
-#[derive(Debug, Clone, Copy)]
-struct BaseAddress(u32);
-
-impl BaseAddress {
-    fn is_mmio(&self) -> bool {
-        if self.0 & 1 == 1 {
-            false
-        } else {
-            true
+impl From<u16> for Vendor {
+    fn from(value: u16) -> Self {
+        match value {
+            0x8086 => Self::Intel,
+            _ => Self::Unknown(value),
         }
     }
+}
 
-    fn ty(&self) -> u8 {
-        (self.0 & 0b0110) as u8
+#[repr(u16)]
+pub enum Id {
+    E1000 = 0x100E,
+    Unknown(u16),
+}
+
+impl From<u16> for Id {
+    fn from(value: u16) -> Self {
+        match value {
+            0x100E => Self::E1000,
+            _ => Self::Unknown(value),
+        }
     }
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum ClassCode {
+enum ClassCode {
     Unclassified = 0x00,
     MassStorageController,
     NetworkController,
@@ -62,20 +69,20 @@ pub enum ClassCode {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
-pub struct Header {
-    pub vendor_id: u16,
-    pub device_id: u16,
+struct Header {
+    vendor_id: u16,
+    device_id: u16,
     command: u16,
     status: u16,
     revision_id: u8,
     prog_if: u8,
     subclass: u8,
-    pub class_code: ClassCode,
+    class_code: ClassCode,
     cache_line_size: u8,
     latency_timer: u8,
     header_type: u8,
     bist: u8,
-    base_addrs: [BaseAddress; 5],
+    base_addrs: [u32; 6],
     cardbus_cis_ptr: u32,
     subsystem_vendor_id: u16,
     subsystem_id: u16,
@@ -94,6 +101,11 @@ impl Header {
 
     const ENABLE_BIT: u32 = 1 << 31;
     const DID_VID_OFFSET: u8 = 0;
+    const COMMAND_OFFSET: u8 = 4;
+
+    const IO_ENABLE: u8 = 1 << 0;
+    const MMIO_ENABLE: u8 = 1 << 1;
+    const BUS_MASTER: u8 = 1 << 2;
 
     fn new(bus: u8, slot: u8, function: u8) -> Self {
         let mut buffer = [0u32; size_of::<Self>() / size_of::<u32>()];
@@ -116,13 +128,24 @@ impl Header {
             | (offset as u32) & 0xFC;
 
         cpu::out32(Self::CONFIG_ADDR, request);
-
         cpu::in32(Self::CONFIG_DATA)
+    }
+
+    fn write32(bus: u8, slot: u8, function: u8, offset: u8, value: u32) {
+        // Request info about PCI Device Header
+        let request: u32 = Self::ENABLE_BIT
+            | (bus as u32) << 16
+            | (slot as u32) << 11
+            | (function as u32) << 8
+            | (offset as u32) & 0xFC;
+
+        cpu::out32(Self::CONFIG_ADDR, request);
+        cpu::out32(Self::CONFIG_DATA, value);
     }
 }
 
-fn get_devices() -> Vec<Header> {
-    let mut devices: Vec<Header> = Vec::new();
+fn get_devices() -> Vec<Device> {
+    let mut devices = Vec::new();
     for bus in 0..=BUSES {
         for slot in 0..=SLOTS {
             for function in 0..=FUNCTIONS {
@@ -134,13 +157,70 @@ fn get_devices() -> Vec<Header> {
                     continue;
                 }
 
-                devices.push(Header::new(bus, slot, function));
+                devices.push(Device::new(bus, slot, function));
             }
         }
     }
     devices
 }
 
-pub fn init() -> Vec<Header> {
+pub struct Device {
+    header: Header,
+    bus: u8,
+    slot: u8,
+    function: u8,
+}
+
+impl Device {
+    fn new(bus: u8, slot: u8, function: u8) -> Device {
+        Self {
+            header: Header::new(bus, slot, function),
+            bus,
+            slot,
+            function,
+        }
+    }
+
+    fn read32(&self, offset: u8) -> u32 {
+        Header::read32(self.bus, self.slot, self.function, offset)
+    }
+    fn write32(&self, offset: u8, value: u32) {
+        Header::write32(self.bus, self.slot, self.function, offset, value)
+    }
+
+    pub fn base_addrs(&self) -> [u32; 6] {
+        self.header.base_addrs
+    }
+
+    pub fn enable(&self) {
+        let enable_command =
+            Header::IO_ENABLE | Header::MMIO_ENABLE | Header::BUS_MASTER;
+
+        let current_command = self.read32(Header::COMMAND_OFFSET);
+
+        self.write32(
+            Header::COMMAND_OFFSET,
+            current_command | enable_command as u32,
+        );
+    }
+
+    pub fn is_network_controller(&self) -> bool {
+        if self.header.class_code == ClassCode::NetworkController {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn vendor(&self) -> Vendor {
+        self.header.vendor_id.into()
+    }
+
+    pub fn id(&self) -> Id {
+        self.header.device_id.into()
+    }
+}
+
+pub fn init() -> Vec<Device> {
     get_devices()
 }

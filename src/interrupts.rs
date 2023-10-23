@@ -42,7 +42,7 @@ macro_rules! trap_isr {
 trap_isr!(trap_default, interrupts);
 isr!(isr_default, interrupts);
 isr!(isr_0x21, keyboard);
-isr!(isr_0x2b, nic);
+isr!(isr_0x2b, net);
 
 fn isr() {
     end_of_interrupt();
@@ -86,6 +86,7 @@ pub fn init() {
     const EXCEPTION_START: usize = 0x00;
     const EXCEPTION_END: usize = 0x1F;
     const KEYBOARD_IRQ: usize = 0x21;
+    const NIC_IRQ: usize = 0x2B;
     let mut entry: usize = 0;
 
     unsafe {
@@ -111,7 +112,6 @@ pub fn init() {
                         isr_high: (isr_0x21 as u32 >> 16) as u16,
                     };
                 }
-                _ => (*IDT)[entry] = IdtEntry::default(),
                 NIC_IRQ => {
                     (*IDT)[entry] = IdtEntry {
                         isr_low: isr_0x2b as u16,

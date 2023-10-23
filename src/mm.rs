@@ -58,9 +58,6 @@ pub fn init(memory_map: u32) -> Result<(), ()> {
 
         let mut largest_entry: Option<&Entry> = None;
         for entry in entries.iter() {
-            //            if entry.r#type != 0 {
-            //                crate::println!("{:X?}", entry);
-            //            }
             if entry.r#type != 1 {
                 continue;
             }

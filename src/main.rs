@@ -14,7 +14,7 @@ mod instrinsics;
 mod interrupts;
 mod keyboard;
 mod mm;
-mod nic;
+mod net;
 mod pci;
 mod pic;
 
@@ -35,7 +35,7 @@ fn entry(memory_map_base_addr: u32) {
     interrupts::init();
     pic::init();
     let devices = pci::init();
-    nic::init(&devices);
+    net::init(&devices);
     acpi::init();
 
     loop {

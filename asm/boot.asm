@@ -89,7 +89,8 @@ read_disk:
 disk_access_packet:
     size db 16
     reserved db 0
-    max_sectors dw 127
+    ; 128 is the max allowed
+    max_sectors dw 128 
     ; We write the whole disk to the entrypoint over the top of what we have
     load_address dd 0x7C00 
     start_sector dq 0
