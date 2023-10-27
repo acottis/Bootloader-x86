@@ -11,6 +11,7 @@ const PACKET_SIZE: u64 = 2048;
 mod reg {
     pub const CTRL: u32 = 0x0000;
     pub const STATUS: u32 = 0x0008;
+    pub const IMS: u32 = 0x00D0;
     pub const RCTL: u32 = 0x0100;
     pub(super) mod rctl {
         pub const ENABLE: u32 = 1 << 1;
@@ -130,6 +131,7 @@ impl NetworkCard for Driver {
 
         device.enable();
 
+        println!("{device:X?}");
         Self {
             mmio_base,
             io_base,
@@ -146,8 +148,13 @@ impl NetworkCard for Driver {
         self.mac_addr = unsafe {
             read_volatile((self.mmio_base + reg::RAL) as *const MacAddress)
         };
-
         self.init_recieve();
+
+        self.write(reg::IMS, 0x1F8DC);
+        self.write(reg::IMS, 0xff & !4);
+        //self.write(0xd8, 0xFFFFFFFF);
+        println!("{:b}", self.read(reg::IMS));
+        println!("{:b}", self.read(0xc0));
     }
 
     fn receive(&self) {
@@ -155,8 +162,6 @@ impl NetworkCard for Driver {
 
         for offset in 0..RECEIVE_DESC_BUF_LENGTH as isize {
             unsafe {
-                // Get the current Recieve Descriptor from our allocated memory
-                // and put it on the stack
                 let mut rdesc: Rdesc =
                     core::ptr::read(rdesc_base_ptr.offset(offset));
 
@@ -168,7 +173,10 @@ impl NetworkCard for Driver {
                     rdesc.status = 0;
                     rdesc.len = 0;
 
-                    core::ptr::write(rdesc_base_ptr.offset(offset), rdesc);
+                    core::ptr::write_volatile(
+                        rdesc_base_ptr.offset(offset),
+                        rdesc,
+                    );
 
                     self.write(
                         reg::RDT0,

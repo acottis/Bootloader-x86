@@ -164,6 +164,7 @@ fn get_devices() -> Vec<Device> {
     devices
 }
 
+#[derive(Debug)]
 pub struct Device {
     header: Header,
     bus: u8,
@@ -193,14 +194,14 @@ impl Device {
     }
 
     pub fn enable(&self) {
-        let enable_command =
+        let enable_bits =
             Header::IO_ENABLE | Header::MMIO_ENABLE | Header::BUS_MASTER;
 
         let current_command = self.read32(Header::COMMAND_OFFSET);
 
         self.write32(
             Header::COMMAND_OFFSET,
-            current_command | enable_command as u32,
+            current_command | enable_bits as u32,
         );
     }
 

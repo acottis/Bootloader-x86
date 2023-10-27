@@ -34,6 +34,7 @@ const SHIFT_KEY_MAP: [char; 59] = [
     '\0', ' ', '\0',
 ];
 
+#[inline(always)]
 pub fn isr() {
     let raw_key = in8(KEYBOARD_PORT);
 

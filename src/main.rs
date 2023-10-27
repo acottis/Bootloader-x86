@@ -32,11 +32,11 @@ fn entry(memory_map_base_addr: u32) {
 
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");
-    interrupts::init();
-    pic::init();
     let devices = pci::init();
     net::init(&devices);
     acpi::init();
+    interrupts::init();
+    pic::init();
 
     loop {
         cpu::halt();

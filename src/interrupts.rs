@@ -1,4 +1,7 @@
-use crate::{cpu, pic::end_of_interrupt};
+use crate::{
+    cpu,
+    pic::{self, end_of_interrupt},
+};
 
 const IDT_ENTRIES: u16 = 0xFF;
 const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
@@ -45,10 +48,12 @@ isr!(isr_0x21, keyboard);
 isr!(isr_0x2b, net);
 
 fn isr() {
+    //print!("I");
+    print!("{:X} ", pic::irq_reg());
     end_of_interrupt();
 }
 fn trap() {
-    crate::println!("Exception");
+    println!("Exception");
 }
 
 #[allow(dead_code)]
@@ -84,7 +89,7 @@ impl Default for IdtEntry {
 
 pub fn init() {
     const EXCEPTION_START: usize = 0x00;
-    const EXCEPTION_END: usize = 0x1F;
+    const EXCEPTION_END: usize = 0x1E;
     const KEYBOARD_IRQ: usize = 0x21;
     const NIC_IRQ: usize = 0x2B;
     let mut entry: usize = 0;
