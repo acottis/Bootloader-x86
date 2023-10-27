@@ -48,12 +48,10 @@ isr!(isr_0x21, keyboard);
 isr!(isr_0x2b, net);
 
 fn isr() {
-    //print!("I");
-    print!("{:X} ", pic::irq_reg());
     end_of_interrupt();
 }
 fn trap() {
-    println!("Exception");
+    panic!("Exception");
 }
 
 #[allow(dead_code)]
@@ -89,7 +87,7 @@ impl Default for IdtEntry {
 
 pub fn init() {
     const EXCEPTION_START: usize = 0x00;
-    const EXCEPTION_END: usize = 0x1E;
+    const EXCEPTION_END: usize = 0x1F;
     const KEYBOARD_IRQ: usize = 0x21;
     const NIC_IRQ: usize = 0x2B;
     let mut entry: usize = 0;

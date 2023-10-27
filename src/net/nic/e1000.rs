@@ -131,7 +131,6 @@ impl NetworkCard for Driver {
 
         device.enable();
 
-        println!("{device:X?}");
         Self {
             mmio_base,
             io_base,
@@ -152,7 +151,6 @@ impl NetworkCard for Driver {
 
         self.write(reg::IMS, 0x1F8DC);
         self.write(reg::IMS, 0xff & !4);
-        //self.write(0xd8, 0xFFFFFFFF);
         println!("{:b}", self.read(reg::IMS));
         println!("{:b}", self.read(0xc0));
     }

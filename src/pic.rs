@@ -19,9 +19,10 @@ const IRQ8_OFFSET: u8 = 0x28;
 const READ_IRR: u8 = 0x0A;
 const READ_ISR: u8 = 0x0B;
 
+// This seems wrong
 pub fn irq_reg() -> u16 {
-    out8(PIC1_COMMAND, READ_ISR);
-    out8(PIC2_COMMAND, READ_ISR);
+    out8(PIC1_COMMAND, READ_IRR);
+    out8(PIC2_COMMAND, READ_IRR);
     ((in8(PIC2_COMMAND) as u16) << 8) | in8(PIC1_COMMAND) as u16
 }
 
@@ -32,11 +33,6 @@ pub fn end_of_interrupt() {
 
 pub fn init() {
     cli();
-    // Save default mask
-    let pic1_mask = in8(PIC1_DATA);
-    let pic2_mask = in8(PIC2_DATA);
-    print!("{pic1_mask:b}\n");
-    print!("{pic2_mask:b}\n");
 
     // Initialise the PIC
     out8(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
@@ -55,7 +51,7 @@ pub fn init() {
     out8(PIC1_DATA, ICW4_8086);
     out8(PIC2_DATA, ICW4_8086);
 
-    // Use default masks
+    // Mask interrupts we dont care about
     out8(PIC1_DATA, 1);
     out8(PIC2_DATA, 0);
     sti();

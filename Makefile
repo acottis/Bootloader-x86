@@ -6,7 +6,7 @@ run: rust
 	qemu-system-i386 \
 		-m 64M \
 		-nic tap,ifname=$(tap_name),script=no,downscript=no,model=e1000 \
-		-drive file=target/stage0.bin,media=disk -boot n
+		-drive file=target/stage0.bin,media=disk
 
 tftp: rust
 	qemu-system-x86_64 \
