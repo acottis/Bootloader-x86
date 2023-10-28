@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
 use crate::{
@@ -106,6 +108,7 @@ pub struct Driver {
     io_base: usize,
     flash_base: usize,
     mac_addr: MacAddress,
+    rdesc_buffer: Vec<Rdesc>,
 }
 
 impl Driver {
@@ -181,6 +184,7 @@ impl NetworkCard for Driver {
             io_base,
             flash_base,
             mac_addr: MacAddress([0u8; 6]),
+            rdesc_buffer: Vec::with_capacity(RECEIVE_DESC_BUF_LENGTH as usize),
         }
     }
 
@@ -194,10 +198,9 @@ impl NetworkCard for Driver {
         };
         self.init_recieve();
 
-        self.write(reg::IMS, 0x1F8DC);
-        self.write(reg::IMS, 0xff & !4);
-        println!("{:b}", self.read(reg::IMS));
-        println!("{:b}", self.read(0xc0));
+        // Enable interrupts
+        //self.write(reg::IMS, 0x1F8DC);
+        self.write(reg::IMS, 0xFFFFFFFF);
     }
 
     fn receive(&self) {

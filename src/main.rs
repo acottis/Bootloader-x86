@@ -23,6 +23,7 @@ mod pic;
 fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
     print!("{}", info);
     loop {
+        cpu::cli();
         cpu::halt();
     }
 }
@@ -34,10 +35,10 @@ fn entry(entry_addr: u32, memory_map_base_addr: u32) {
     // This sets the initial IDT, must happen first to avoid clobbering
     // other devices setting interrupts
     interrupts::init();
+    pic::init();
 
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");
-    pic::init();
 
     let devices = pci::init();
     net::init(&devices);
