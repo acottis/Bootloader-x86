@@ -13,7 +13,7 @@ const ICW1_ICW4: u8 = 0x01;
 
 const ICW4_8086: u8 = 0x01;
 
-const IRQ0_OFFSET: u8 = 0x20;
+pub const IRQ0_OFFSET: u8 = 0x20;
 const IRQ8_OFFSET: u8 = 0x28;
 
 const READ_IRR: u8 = 0x0A;

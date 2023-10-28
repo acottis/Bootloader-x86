@@ -1,6 +1,6 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::{cpu::in8, pic};
+use crate::{cpu::in8, interrupts, pic};
 
 const KEYBOARD_PORT: u16 = 0x60;
 
@@ -34,8 +34,9 @@ const SHIFT_KEY_MAP: [char; 59] = [
     '\0', ' ', '\0',
 ];
 
-#[inline(always)]
-pub fn isr() {
+isr!(irq, keyboard);
+
+fn isr() {
     let raw_key = in8(KEYBOARD_PORT);
 
     match raw_key {
@@ -54,4 +55,8 @@ pub fn isr() {
     };
 
     pic::end_of_interrupt();
+}
+
+pub fn init() {
+    interrupts::insert_idt_entry(irq, pic::IRQ0_OFFSET as usize + 1);
 }

@@ -6,12 +6,13 @@ extern crate alloc;
 
 #[macro_use]
 mod vga;
+#[macro_use]
+mod interrupts;
 
 mod acpi;
 mod cpu;
 mod error;
 mod instrinsics;
-mod interrupts;
 mod keyboard;
 mod mm;
 mod net;
@@ -27,16 +28,22 @@ fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
 }
 
 #[export_name = "entry"]
-fn entry(memory_map_base_addr: u32) {
-    println!("Rust Entry ESP:{:X}", cpu::esp());
+fn entry(entry_addr: u32, memory_map_base_addr: u32) {
+    println!("Rust Entry ESP:{:X}", entry_addr);
+
+    // This sets the initial IDT, must happen first to avoid clobbering
+    // other devices setting interrupts
+    interrupts::init();
 
     mm::init(memory_map_base_addr)
         .expect("Failed to find suitable memory region for allocator");
+    pic::init();
+
     let devices = pci::init();
     net::init(&devices);
+
     acpi::init();
-    interrupts::init();
-    pic::init();
+    keyboard::init();
 
     loop {
         cpu::halt();

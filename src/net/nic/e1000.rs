@@ -1,9 +1,17 @@
-use core::ptr::{read_volatile, write_volatile};
-
-use self::reg::{rctl, RCTL};
-
+use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
-use crate::pci::{self};
+use crate::{
+    interrupts,
+    pci::{self},
+    pic,
+};
+use core::{
+    mem::MaybeUninit,
+    ptr::{read_volatile, write_volatile},
+};
+
+pub static mut DRIVER: MaybeUninit<Driver> = MaybeUninit::uninit();
+
 const PACKET_SIZE: u64 = 2048;
 
 /// registers
@@ -11,7 +19,20 @@ const PACKET_SIZE: u64 = 2048;
 mod reg {
     pub const CTRL: u32 = 0x0000;
     pub const STATUS: u32 = 0x0008;
+
+    /// Interrupt Cause Read Register
+    pub const ICR: u32 = 0x00C0;
+
+    /// Interrupt Cause Set Register
+    /// Used for Software to set the interrupt conditions
+    pub const ICS: u32 = 0x00C8;
+    pub(super) mod ics {
+        /// Receive Timer Interrupt
+        pub const RXTO: u32 = 1 << 7;
+    }
     pub const IMS: u32 = 0x00D0;
+    /// Write only for disabling interrupts
+    pub const IMC: u32 = 0x00D8;
     pub const RCTL: u32 = 0x0100;
     pub(super) mod rctl {
         pub const ENABLE: u32 = 1 << 1;
@@ -46,6 +67,25 @@ const RECEIVE_BASE_BUFFER_ADDRESS: u64 = 0x880000;
 const RECEIVE_QUEUE_HEAD_START: u32 = 20;
 const RECEIVE_QUEUE_TAIL_START: u32 = 4;
 
+isr!(irq, net::nic::e1000);
+
+pub fn isr(ip: u32, cs: u32, flags: u32, sp: u32, ss: u32) {
+    let driver = unsafe { &*DRIVER.as_ptr() };
+
+    let cause = driver.read(reg::ICR);
+    match cause {
+        _ if (cause & ics::RXTO) == ics::RXTO => {
+            print!("p");
+            driver.receive();
+        }
+        _ => {
+            print!("a");
+        }
+    };
+
+    crate::pic::end_of_interrupt();
+}
+
 /// This struct is the receive descriptor format that stores the packet metadata
 /// and the buffer points to the packet location in memory
 #[derive(Debug, Default)]
@@ -57,6 +97,15 @@ struct Rdesc {
     status: u8,
     errors: u8,
     special: u16,
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct Driver {
+    mmio_base: u32,
+    io_base: usize,
+    flash_base: usize,
+    mac_addr: MacAddress,
 }
 
 impl Driver {
@@ -114,15 +163,6 @@ impl Driver {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct Driver {
-    mmio_base: u32,
-    io_base: usize,
-    flash_base: usize,
-    mac_addr: MacAddress,
-}
-
 impl NetworkCard for Driver {
     fn new(device: &pci::Device) -> Self {
         let mmio_base = ((device.base_addrs()[0]) & !0b1111) as u32;
@@ -130,6 +170,11 @@ impl NetworkCard for Driver {
         let flash_base = device.base_addrs()[2] as usize;
 
         device.enable();
+
+        interrupts::insert_idt_entry(
+            irq,
+            (device.interrupt_line() + pic::IRQ0_OFFSET) as usize,
+        );
 
         Self {
             mmio_base,

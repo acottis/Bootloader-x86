@@ -21,6 +21,7 @@ real_entry:
     or al, 2
     out 0x92, al
 
+    ; Get the memory map from bios for our allocator later
     call get_memory_map
 
     ; Read next stage bootloader from disk
@@ -133,25 +134,26 @@ global_desc_table_desc:
     ; GDT.Base
     dd global_desc_table_base
 
-
 [bits 32]
 pm_entry:
     ; Reload the data segment registers with the data descriptor
-    mov   ax, (gdt_section_data - global_desc_table_base) ; 0X10 IS A STAND-IN FOR YOUR DATA SEGMENT
+    ; First we calculate the offset of the data segment in GDT 
+    mov   ax, (gdt_section_data - global_desc_table_base)
     mov   ds, ax
     mov   es, ax
     mov   fs, ax
     mov   gs, ax
     mov   ss, ax
 
-    ; Write to VGA buffer
-    ;mov eax, 0x07690748
-    ;mov [0x0B8000], eax
+    ; Set up a stack
     mov esp, 0x7C00
 
     ; Pass memory mem_map address to rust
     push memory_map
+    ; Pass the entry address of rust
+    push entry
+    ; fn entry(memory_map: u32, entry_addr: u32)
     call entry
     
 ; Reserve space for entries in the memory map
-memory_map: equ 0x1000
+memory_map: equ 0x400

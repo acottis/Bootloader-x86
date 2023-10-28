@@ -1,24 +1,22 @@
-use crate::{
-    cpu,
-    pic::{self, end_of_interrupt},
-};
+use crate::{cpu, pic::end_of_interrupt};
 
 const IDT_ENTRIES: u16 = 0xFF;
 const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
 const CODE_SELECTOR_OFFSET: u16 = 8;
+const IDT_BASE: usize = 0x1000;
 
 static mut IDT: *mut [IdtEntry; IDT_ENTRIES as usize] =
-    0x1000 as *mut [IdtEntry; IDT_ENTRIES as usize];
+    IDT_BASE as *mut [IdtEntry; IDT_ENTRIES as usize];
 
+/// ARG1: IRQ name
+/// ARG2: module path
 macro_rules! isr {
     ($irq:ident, $module:ident$(::$rest:ident)*) => {
         #[naked]
         unsafe extern "C" fn $irq() -> ! {
             core::arch::asm!(
-                "pushad",
                 "call {}",
-                "popad",
                 "iretd",
                 sym $crate::$module$(::$rest)*::isr,
                 options(noreturn)
@@ -44,14 +42,12 @@ macro_rules! trap_isr {
 
 trap_isr!(trap_default, interrupts);
 isr!(isr_default, interrupts);
-isr!(isr_0x21, keyboard);
-isr!(isr_0x2b, net);
 
 fn isr() {
     end_of_interrupt();
 }
-fn trap() {
-    panic!("Exception");
+fn trap(arg1: u32, arg2: u32, arg3: u32) {
+    panic!("Exception - Stack: {arg1:x}, {arg2:x}, {arg3:x}");
 }
 
 #[allow(dead_code)]
@@ -85,11 +81,22 @@ impl Default for IdtEntry {
     }
 }
 
+pub fn insert_idt_entry(isr: unsafe extern "C" fn() -> !, entry: usize) {
+    unsafe {
+        (*IDT)[entry] = IdtEntry {
+            isr_low: isr as u16,
+            // The entry of our CODE selector in GDT
+            kernel_cs: CODE_SELECTOR_OFFSET,
+            reserved: 0,
+            attributes: 0x8F,
+            isr_high: (isr as u32 >> 16) as u16,
+        }
+    }
+}
+
 pub fn init() {
     const EXCEPTION_START: usize = 0x00;
     const EXCEPTION_END: usize = 0x1F;
-    const KEYBOARD_IRQ: usize = 0x21;
-    const NIC_IRQ: usize = 0x2B;
     let mut entry: usize = 0;
 
     unsafe {
@@ -103,26 +110,6 @@ pub fn init() {
                         reserved: 0,
                         attributes: 0x8F,
                         isr_high: (trap_default as u32 >> 16) as u16,
-                    };
-                }
-                KEYBOARD_IRQ => {
-                    (*IDT)[entry] = IdtEntry {
-                        isr_low: isr_0x21 as u16,
-                        // The entry of our CODE selector in GDT
-                        kernel_cs: CODE_SELECTOR_OFFSET,
-                        reserved: 0,
-                        attributes: 0x8E,
-                        isr_high: (isr_0x21 as u32 >> 16) as u16,
-                    };
-                }
-                NIC_IRQ => {
-                    (*IDT)[entry] = IdtEntry {
-                        isr_low: isr_0x2b as u16,
-                        // The entry of our CODE selector in GDT
-                        kernel_cs: CODE_SELECTOR_OFFSET,
-                        reserved: 0,
-                        attributes: 0x8E,
-                        isr_high: (isr_0x2b as u32 >> 16) as u16,
                     };
                 }
                 _ => (*IDT)[entry] = IdtEntry::default(),

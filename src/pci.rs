@@ -193,6 +193,10 @@ impl Device {
         self.header.base_addrs
     }
 
+    pub fn interrupt_line(&self) -> u8 {
+        self.header.interrupt_line
+    }
+
     pub fn enable(&self) {
         let enable_bits =
             Header::IO_ENABLE | Header::MMIO_ENABLE | Header::BUS_MASTER;
