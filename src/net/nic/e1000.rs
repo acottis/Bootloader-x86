@@ -2,6 +2,10 @@ use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
 use crate::{
     interrupts::{self, Idt},
+    net::{
+        packet::{self, Packet},
+        Serialise,
+    },
     pci::{self},
     pic,
 };
@@ -12,7 +16,7 @@ use core::{
 
 pub static mut DRIVER: MaybeUninit<Driver> = MaybeUninit::uninit();
 
-const PACKET_SIZE: u64 = 2048;
+const PACKET_SIZE: usize = 2048;
 const RDESCS_BASE_ADDR: u64 = 0x100_000;
 const RDESCS_LENGTH: u32 = 8;
 const RECEIVE_BUFFER_BASE_ADDR: u64 = 0x108_000;
@@ -136,6 +140,21 @@ impl Driver {
         self.write(reg::RDBAH0, (RDESCS_BASE_ADDR >> 32) as u32);
         self.write(reg::RDBAL0, RDESCS_BASE_ADDR as u32);
 
+        // Zero out the chosen memory location and place the memory location for
+        // the raw packets in the Recieve buffer field in the [`Rdesc`]
+        // struct
+        let rdesc_base_ptr = RDESCS_BASE_ADDR as *mut Rdesc;
+        for offset in 0..RDESCS_LENGTH as isize {
+            let rdesc = Rdesc {
+                buffer: RECEIVE_BUFFER_BASE_ADDR
+                    + (offset as usize * PACKET_SIZE) as u64,
+                ..Default::default()
+            };
+            unsafe {
+                core::ptr::write(rdesc_base_ptr.offset(offset), rdesc);
+            }
+        }
+
         self.write(
             RCTL,
             rctl::ENABLE
@@ -144,21 +163,6 @@ impl Driver {
                 | rctl::ACCEPT_BROADCAST
                 | rctl::STRIP_CRC,
         );
-
-        // Zero out the chosen memory location and place the memory location for
-        // the raw packets in the Recieve buffer field in the [`Rdesc`]
-        // struct
-        let rdesc_base_ptr = RDESCS_BASE_ADDR as *mut Rdesc;
-        for offset in 0..RDESCS_LENGTH as isize {
-            let rdesc = Rdesc {
-                buffer: RECEIVE_BUFFER_BASE_ADDR
-                    + (offset as u64 * PACKET_SIZE),
-                ..Default::default()
-            };
-            unsafe {
-                core::ptr::write(rdesc_base_ptr.offset(offset), rdesc);
-            }
-        }
     }
 }
 
@@ -168,6 +172,10 @@ impl NetworkCard for Driver {
         let io_base = (device.base_addrs()[1] & !0b0011) as usize;
         let flash_base = device.base_addrs()[2] as usize;
 
+        let mac_addr = unsafe {
+            read_volatile((mmio_base + reg::RAL) as *const MacAddress)
+        };
+
         device.enable();
 
         Idt::insert(irq, (device.interrupt_line() + pic::IRQ0_OFFSET) as usize);
@@ -176,7 +184,7 @@ impl NetworkCard for Driver {
             mmio_base,
             io_base,
             flash_base,
-            mac_addr: MacAddress([0u8; 6]),
+            mac_addr,
         }
     }
 
@@ -185,9 +193,6 @@ impl NetworkCard for Driver {
     }
 
     fn init(&mut self) {
-        self.mac_addr = unsafe {
-            read_volatile((self.mmio_base + reg::RAL) as *const MacAddress)
-        };
         self.init_recieve();
 
         // Enable interrupts
@@ -198,24 +203,28 @@ impl NetworkCard for Driver {
         let rdesc_base_ptr = RDESCS_BASE_ADDR as *mut Rdesc;
 
         for offset in 0..RDESCS_LENGTH as isize {
-            unsafe {
-                let mut rdesc: Rdesc = read(rdesc_base_ptr.offset(offset));
+            // Get a reference to the MMIO Receieve Descriptor buffer
+            let rdesc =
+                unsafe { &mut *(rdesc_base_ptr.offset(offset) as *mut Rdesc) };
 
-                // A non zero status means a packet has arrived and is ready for
-                // processing
-                if rdesc.status != 0 {
-                    print!("P");
+            // A non zero status means a packet has arrived and is ready for
+            // processing
+            if rdesc.status != 0 {
+                // Get a reference to the MMIO packet buffer
+                let buffer =
+                    unsafe { &*(rdesc.buffer as *const [u8; PACKET_SIZE]) };
 
-                    rdesc.status = 0;
-                    rdesc.len = 0;
+                // Turn raw bytes in a rusty packet!
+                Packet::deserialise(&buffer[..rdesc.len as usize]);
 
-                    write_volatile(rdesc_base_ptr.offset(offset), rdesc);
+                // Tell the NIC we are done with that packet
+                rdesc.status = 0;
 
-                    self.write(
-                        reg::RDT0,
-                        (self.read(reg::RDT0) + 1) % RDESCS_LENGTH,
-                    )
-                }
+                // Increment tail to give space for new packets
+                self.write(
+                    reg::RDT0,
+                    (self.read(reg::RDT0) + 1) % RDESCS_LENGTH,
+                )
             }
         }
     }
