@@ -1,5 +1,7 @@
 use core::net::Ipv4Addr;
 
+use crate::error::Error;
+
 use super::{nic::MacAddress, Endianness, Serialise};
 
 #[allow(dead_code)]
@@ -21,10 +23,10 @@ impl Arp {
 }
 
 impl Serialise for Arp {
-    fn deserialise(buffer: &[u8]) -> Self {
+    fn deserialise(buffer: &[u8]) -> Result<Self, Error> {
         let mut ptr = 0;
 
-        Self {
+        Ok(Self {
             hardware_ty: consume!(ptr, buffer, [u8; 2]),
             protocol_ty: consume!(ptr, buffer, [u8; 2]),
             hardware_len: consume!(ptr, buffer, u8),
@@ -34,7 +36,7 @@ impl Serialise for Arp {
             src_ip: consume!(ptr, buffer, [u8; 4]).into(),
             dst_mac: consume!(ptr, buffer, [u8; 6]).into(),
             dst_ip: consume!(ptr, buffer, [u8; 4]).into(),
-        }
+        })
     }
 
     fn serialise(&self, buffer: &mut [u8]) {

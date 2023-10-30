@@ -44,7 +44,7 @@ mod packet;
 
 mod arp;
 mod nic;
-use crate::{net::nic::NetworkCard, pci};
+use crate::{error::Error, net::nic::NetworkCard, pci};
 
 enum Endianness {
     Big,
@@ -52,7 +52,9 @@ enum Endianness {
 }
 
 trait Serialise {
-    fn deserialise(buffer: &[u8]) -> Self;
+    fn deserialise(buffer: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized;
 
     fn serialise(&self, buffer: &mut [u8]);
 }

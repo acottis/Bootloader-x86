@@ -8,4 +8,8 @@ pub enum Error {
 
     /// Mac Addresses must be 6 bytes
     MacAddressLen,
+
+    /// Either not implemented or failing to parse packet from
+    /// network buffer
+    CouldNotParsePacket,
 }

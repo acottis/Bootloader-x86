@@ -218,7 +218,10 @@ impl NetworkCard for Driver {
                     unsafe { &*(rdesc.buffer as *const [u8; PACKET_SIZE]) };
 
                 // Turn raw bytes in a rusty packet!
-                Packet::deserialise(&buffer[..rdesc.len as usize]);
+                println!(
+                    "{:X?}",
+                    Packet::deserialise(&buffer[..rdesc.len as usize])
+                );
 
                 // Tell the NIC we are done with that packet
                 rdesc.status = 0;
