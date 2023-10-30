@@ -72,13 +72,12 @@ mod reg {
 
 isr!(irq, net::nic::e1000);
 
-pub fn isr(ip: u32, cs: u32, flags: u32, sp: u32, ss: u32) {
+fn isr(ip: u32, cs: u32, flags: u32, sp: u32, ss: u32) {
     let driver = unsafe { &*DRIVER.as_ptr() };
 
     let cause = driver.read(reg::ICR);
     match cause {
         _ if (cause & ics::RXTO) == ics::RXTO => {
-            print!("p");
             driver.receive();
         }
         _ => {
@@ -128,7 +127,7 @@ impl Driver {
         };
     }
 
-    pub fn init_recieve(&self) {
+    fn init_recieve(&self) {
         // Set the Receive Descriptor Length
         self.write(reg::RDLEN0, RDESCS_LENGTH << 8);
 
@@ -151,7 +150,7 @@ impl Driver {
                 ..Default::default()
             };
             unsafe {
-                core::ptr::write(rdesc_base_ptr.offset(offset), rdesc);
+                write_volatile(rdesc_base_ptr.offset(offset), rdesc);
             }
         }
 
@@ -172,12 +171,15 @@ impl NetworkCard for Driver {
         let io_base = (device.base_addrs()[1] & !0b0011) as usize;
         let flash_base = device.base_addrs()[2] as usize;
 
+        // Parse MAC from MMIO
         let mac_addr = unsafe {
             read_volatile((mmio_base + reg::RAL) as *const MacAddress)
         };
 
+        // Bus master enable
         device.enable();
 
+        // Insert interrupt into IDT
         Idt::insert(irq, (device.interrupt_line() + pic::IRQ0_OFFSET) as usize);
 
         Self {
@@ -193,6 +195,7 @@ impl NetworkCard for Driver {
     }
 
     fn init(&mut self) {
+        // Enable receiving packets
         self.init_recieve();
 
         // Enable interrupts

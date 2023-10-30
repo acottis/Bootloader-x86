@@ -11,6 +11,12 @@ use crate::pci::{self, Id, Vendor};
 #[repr(C)]
 pub struct MacAddress([u8; 6]);
 
+impl From<[u8; 6]> for MacAddress {
+    fn from(value: [u8; 6]) -> Self {
+        Self(value)
+    }
+}
+
 pub trait NetworkCard {
     fn new(device: &pci::Device) -> Self;
     fn init(&mut self);

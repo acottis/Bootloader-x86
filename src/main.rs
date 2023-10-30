@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(naked_functions)]
+#![feature(naked_functions, ip_in_core)]
 
 extern crate alloc;
 
