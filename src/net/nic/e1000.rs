@@ -1,7 +1,7 @@
 use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
 use crate::{
-    interrupts,
+    interrupts::{self, Idt},
     pci::{self},
     pic,
 };
@@ -170,10 +170,7 @@ impl NetworkCard for Driver {
 
         device.enable();
 
-        interrupts::insert_idt_entry(
-            irq,
-            (device.interrupt_line() + pic::IRQ0_OFFSET) as usize,
-        );
+        Idt::insert(irq, (device.interrupt_line() + pic::IRQ0_OFFSET) as usize);
 
         Self {
             mmio_base,

@@ -34,7 +34,7 @@ fn entry(entry_addr: u32, memory_map_base_addr: u32) {
 
     // This sets the initial IDT, must happen first to avoid clobbering
     // other devices setting interrupts
-    interrupts::init();
+    interrupts::Idt::init();
     pic::init();
 
     mm::init(memory_map_base_addr)

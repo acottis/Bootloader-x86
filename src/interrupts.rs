@@ -81,46 +81,50 @@ impl Default for IdtEntry {
     }
 }
 
-pub fn insert_idt_entry(isr: unsafe extern "C" fn() -> !, entry: usize) {
-    unsafe {
-        (*IDT)[entry] = IdtEntry {
-            isr_low: isr as u16,
-            // The entry of our CODE selector in GDT
-            kernel_cs: CODE_SELECTOR_OFFSET,
-            reserved: 0,
-            attributes: 0x8F,
-            isr_high: (isr as u32 >> 16) as u16,
+pub struct Idt;
+
+impl Idt {
+    pub fn insert(isr: unsafe extern "C" fn() -> !, entry: usize) {
+        unsafe {
+            (*IDT)[entry] = IdtEntry {
+                isr_low: isr as u16,
+                // The entry of our CODE selector in GDT
+                kernel_cs: CODE_SELECTOR_OFFSET,
+                reserved: 0,
+                attributes: 0x8F,
+                isr_high: (isr as u32 >> 16) as u16,
+            }
         }
     }
-}
 
-pub fn init() {
-    const EXCEPTION_START: usize = 0x00;
-    const EXCEPTION_END: usize = 0x1F;
-    let mut entry: usize = 0;
+    pub fn init() {
+        const EXCEPTION_START: usize = 0x00;
+        const EXCEPTION_END: usize = 0x1F;
+        let mut entry: usize = 0;
 
-    unsafe {
-        while entry < IDT_ENTRIES as usize {
-            match entry {
-                EXCEPTION_START..=EXCEPTION_END => {
-                    (*IDT)[entry] = IdtEntry {
-                        isr_low: trap_default as u16,
-                        // The entry of our CODE selector in GDT
-                        kernel_cs: CODE_SELECTOR_OFFSET,
-                        reserved: 0,
-                        attributes: 0x8F,
-                        isr_high: (trap_default as u32 >> 16) as u16,
-                    };
-                }
-                _ => (*IDT)[entry] = IdtEntry::default(),
+        unsafe {
+            while entry < IDT_ENTRIES as usize {
+                match entry {
+                    EXCEPTION_START..=EXCEPTION_END => {
+                        (*IDT)[entry] = IdtEntry {
+                            isr_low: trap_default as u16,
+                            // The entry of our CODE selector in GDT
+                            kernel_cs: CODE_SELECTOR_OFFSET,
+                            reserved: 0,
+                            attributes: 0x8F,
+                            isr_high: (trap_default as u32 >> 16) as u16,
+                        };
+                    }
+                    _ => (*IDT)[entry] = IdtEntry::default(),
+                };
+                entry += 1;
+            }
+            let lidt_desc = LidtDesc {
+                limit: IDT_LENGTH,
+                base: IDT as u32,
             };
-            entry += 1;
-        }
-        let lidt_desc = LidtDesc {
-            limit: IDT_LENGTH,
-            base: IDT as u32,
-        };
 
-        cpu::lidt(&lidt_desc);
+            cpu::lidt(&lidt_desc);
+        }
     }
 }
