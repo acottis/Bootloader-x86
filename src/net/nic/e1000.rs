@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
 use crate::{
@@ -9,12 +7,25 @@ use crate::{
 };
 use core::{
     mem::MaybeUninit,
-    ptr::{read_volatile, write_volatile},
+    ptr::{read, read_volatile, write_volatile},
 };
 
 pub static mut DRIVER: MaybeUninit<Driver> = MaybeUninit::uninit();
 
 const PACKET_SIZE: u64 = 2048;
+const RDESCS_BASE_ADDR: u64 = 0x100_000;
+const RDESCS_LENGTH: u32 = 8;
+const RECEIVE_BUFFER_BASE_ADDR: u64 = 0x108_000;
+const RECEIVE_QUEUE_HEAD_START: u32 = 20;
+const RECEIVE_QUEUE_TAIL_START: u32 = 4;
+
+//// Register offsets of the E1000
+//const REG_TDBAL: u32 = 0x3800;
+//const REG_TDBAH: u32 = 0x3804;
+//const REG_TDLEN: u32 = 0x3808;
+//const REG_TDH: u32 = 0x3810;
+//const REG_TDT: u32 = 0x3818;
+//const REG_TCTL: u32 = 0x0400;
 
 /// registers
 #[allow(dead_code)]
@@ -55,20 +66,6 @@ mod reg {
     pub const RAH: u32 = 0x5404;
 }
 
-//// Register offsets of the E1000
-//const REG_TDBAL: u32 = 0x3800;
-//const REG_TDBAH: u32 = 0x3804;
-//const REG_TDLEN: u32 = 0x3808;
-//const REG_TDH: u32 = 0x3810;
-//const REG_TDT: u32 = 0x3818;
-//const REG_TCTL: u32 = 0x0400;
-
-const RECEIVE_DESC_BASE_ADDRESS: u64 = 0x800000;
-const RECEIVE_DESC_BUF_LENGTH: u32 = 8;
-const RECEIVE_BASE_BUFFER_ADDRESS: u64 = 0x880000;
-const RECEIVE_QUEUE_HEAD_START: u32 = 20;
-const RECEIVE_QUEUE_TAIL_START: u32 = 4;
-
 isr!(irq, net::nic::e1000);
 
 pub fn isr(ip: u32, cs: u32, flags: u32, sp: u32, ss: u32) {
@@ -108,7 +105,6 @@ pub struct Driver {
     io_base: usize,
     flash_base: usize,
     mac_addr: MacAddress,
-    rdesc_buffer: Vec<Rdesc>,
 }
 
 impl Driver {
@@ -130,15 +126,15 @@ impl Driver {
 
     pub fn init_recieve(&self) {
         // Set the Receive Descriptor Length
-        self.write(reg::RDLEN0, RECEIVE_DESC_BUF_LENGTH << 8);
+        self.write(reg::RDLEN0, RDESCS_LENGTH << 8);
 
         // Set the Receive Descriptor Head/Tail
         self.write(reg::RDH0, RECEIVE_QUEUE_HEAD_START);
         self.write(reg::RDT0, RECEIVE_QUEUE_TAIL_START);
 
         // give them a size we want Set the Receive Descriptor Base Address
-        self.write(reg::RDBAH0, (RECEIVE_DESC_BASE_ADDRESS >> 32) as u32);
-        self.write(reg::RDBAL0, RECEIVE_DESC_BASE_ADDRESS as u32);
+        self.write(reg::RDBAH0, (RDESCS_BASE_ADDR >> 32) as u32);
+        self.write(reg::RDBAL0, RDESCS_BASE_ADDR as u32);
 
         self.write(
             RCTL,
@@ -152,10 +148,10 @@ impl Driver {
         // Zero out the chosen memory location and place the memory location for
         // the raw packets in the Recieve buffer field in the [`Rdesc`]
         // struct
-        let rdesc_base_ptr = RECEIVE_DESC_BASE_ADDRESS as *mut Rdesc;
-        for offset in 0..RECEIVE_DESC_BUF_LENGTH as isize {
+        let rdesc_base_ptr = RDESCS_BASE_ADDR as *mut Rdesc;
+        for offset in 0..RDESCS_LENGTH as isize {
             let rdesc = Rdesc {
-                buffer: RECEIVE_BASE_BUFFER_ADDRESS
+                buffer: RECEIVE_BUFFER_BASE_ADDR
                     + (offset as u64 * PACKET_SIZE),
                 ..Default::default()
             };
@@ -184,7 +180,6 @@ impl NetworkCard for Driver {
             io_base,
             flash_base,
             mac_addr: MacAddress([0u8; 6]),
-            rdesc_buffer: Vec::with_capacity(RECEIVE_DESC_BUF_LENGTH as usize),
         }
     }
 
@@ -199,17 +194,15 @@ impl NetworkCard for Driver {
         self.init_recieve();
 
         // Enable interrupts
-        //self.write(reg::IMS, 0x1F8DC);
         self.write(reg::IMS, 0xFFFFFFFF);
     }
 
     fn receive(&self) {
-        let rdesc_base_ptr = RECEIVE_DESC_BASE_ADDRESS as *mut Rdesc;
+        let rdesc_base_ptr = RDESCS_BASE_ADDR as *mut Rdesc;
 
-        for offset in 0..RECEIVE_DESC_BUF_LENGTH as isize {
+        for offset in 0..RDESCS_LENGTH as isize {
             unsafe {
-                let mut rdesc: Rdesc =
-                    core::ptr::read(rdesc_base_ptr.offset(offset));
+                let mut rdesc: Rdesc = read(rdesc_base_ptr.offset(offset));
 
                 // A non zero status means a packet has arrived and is ready for
                 // processing
@@ -219,14 +212,11 @@ impl NetworkCard for Driver {
                     rdesc.status = 0;
                     rdesc.len = 0;
 
-                    core::ptr::write_volatile(
-                        rdesc_base_ptr.offset(offset),
-                        rdesc,
-                    );
+                    write_volatile(rdesc_base_ptr.offset(offset), rdesc);
 
                     self.write(
                         reg::RDT0,
-                        (self.read(reg::RDT0) + 1) % RECEIVE_DESC_BUF_LENGTH,
+                        (self.read(reg::RDT0) + 1) % RDESCS_LENGTH,
                     )
                 }
             }
