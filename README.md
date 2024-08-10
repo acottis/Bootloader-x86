@@ -1,5 +1,7 @@
 # Bootloader-x86
 
+Currently only can be built on linux, LD support for linking into a raw binary is a feature we use.
+
 
 # TODO
 * ~Fix alignment~
