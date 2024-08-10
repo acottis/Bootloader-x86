@@ -6,6 +6,8 @@ extern entry
 
 section .stage0
 
+%define A20_PORT 0x92
+
 ; assemble copatable with x86 real mode
 [bits 16]
 real_entry: 
@@ -17,9 +19,9 @@ real_entry:
     int 0x10
 
     ; Set A20
-    in al, 0x92
+    in al, A20_PORT
     or al, 2
-    out 0x92, al
+    out A20_PORT, al
 
     ; Get the memory map from bios for our allocator later
     call get_memory_map
