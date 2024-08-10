@@ -1,10 +1,6 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::{
-    cpu::in8,
-    interrupts::{self, Idt},
-    pic,
-};
+use crate::{cpu::in8, interrupts::Idt, pic};
 
 const KEYBOARD_PORT: u16 = 0x60;
 

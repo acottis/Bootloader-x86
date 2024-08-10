@@ -54,7 +54,7 @@ impl Serialise for Ethernet {
         })
     }
 
-    fn serialise(&self, buffer: &mut [u8]) {
+    fn serialise(&self, _: &mut [u8]) {
         todo!()
     }
 }
@@ -69,8 +69,6 @@ pub(super) struct Packet {
     ethernet: Ethernet,
     protocol: Protocol,
 }
-
-impl Packet {}
 
 impl Serialise for Packet {
     fn deserialise(buffer: &[u8]) -> Result<Self, Error> {
@@ -91,7 +89,7 @@ impl Serialise for Packet {
         }
     }
 
-    fn serialise(&self, buffer: &mut [u8]) {
+    fn serialise(&self, _: &mut [u8]) {
         todo!()
     }
 }

@@ -39,7 +39,7 @@ impl Serialise for Arp {
         })
     }
 
-    fn serialise(&self, buffer: &mut [u8]) {
+    fn serialise(&self, _: &mut [u8]) {
         todo!()
     }
 }

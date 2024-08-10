@@ -38,6 +38,7 @@ pub fn sti() {
     unsafe { asm!("sti") }
 }
 
+#[allow(dead_code)]
 #[inline(always)]
 pub fn esp() -> u32 {
     let esp: u32;

@@ -16,7 +16,9 @@ const ICW4_8086: u8 = 0x01;
 pub const IRQ0_OFFSET: u8 = 0x20;
 const IRQ8_OFFSET: u8 = 0x28;
 
+#[allow(dead_code)]
 const READ_IRR: u8 = 0x0A;
+#[allow(dead_code)]
 const READ_ISR: u8 = 0x0B;
 
 // This seems wrong

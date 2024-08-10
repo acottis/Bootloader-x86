@@ -1,17 +1,14 @@
 use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
 use crate::{
-    interrupts::{self, Idt},
-    net::{
-        packet::{self, Packet},
-        Serialise,
-    },
+    interrupts::Idt,
+    net::{packet::Packet, Serialise},
     pci::{self},
     pic,
 };
 use core::{
     mem::MaybeUninit,
-    ptr::{read, read_volatile, write_volatile},
+    ptr::{read_volatile, write_volatile},
 };
 
 pub static mut DRIVER: MaybeUninit<Driver> = MaybeUninit::uninit();
@@ -72,18 +69,15 @@ mod reg {
 
 isr!(irq, net::nic::e1000);
 
-fn isr(ip: u32, cs: u32, flags: u32, sp: u32, ss: u32) {
+fn isr(_ip: u32, _cs: u32, _flags: u32, _sp: u32, _ss: u32) {
     let driver = unsafe { &*DRIVER.as_ptr() };
 
     let cause = driver.read(reg::ICR);
-    match cause {
-        _ if (cause & ics::RXTO) == ics::RXTO => {
-            driver.receive();
-        }
-        _ => {
-            print!("a");
-        }
-    };
+    if (cause & ics::RXTO) == ics::RXTO {
+        driver.receive();
+    } else {
+        print!("Cause: {}", cause);
+    }
 
     crate::pic::end_of_interrupt();
 }
