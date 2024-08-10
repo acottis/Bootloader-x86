@@ -4,14 +4,16 @@ use core::{
     sync::atomic::{AtomicIsize, Ordering},
 };
 
-const BUFFER: *mut u16 = 0xB8000 as *mut u16;
+const TEXT_BUF: *mut u16 = 0xB8000 as *mut u16;
+const DRAW_BUF: *mut u8 = 0xA0000 as *mut u8;
 const WIDTH: isize = 80;
 static OFFSET: AtomicIsize = AtomicIsize::new(0);
 
 const BACKSPACE: u8 = 0x08;
 
-#[repr(u8)]
 #[allow(dead_code)]
+#[derive(Copy, Clone)]
+#[repr(u8)]
 enum Colour {
     Black,
     Blue,
@@ -20,15 +22,15 @@ enum Colour {
     Red,
     Magenta,
     Brown,
-    White,
-    Gray,
+    LightGrey,
+    DarkGray,
     LightBlue,
     LightGreen,
     LightCyan,
     LightRed,
     LightMagenta,
     Yellow,
-    BrightWhite,
+    White,
 }
 
 pub struct Vga;
@@ -43,13 +45,13 @@ impl Write for Vga {
                     BACKSPACE => {
                         offset -= 1;
                         write_volatile(
-                            BUFFER.offset(offset),
+                            TEXT_BUF.offset(offset),
                             (Colour::Black as u16) << 8 | byte as u16,
                         );
                     }
                     _ => {
                         write_volatile(
-                            BUFFER.offset(offset),
+                            TEXT_BUF.offset(offset),
                             (Colour::Green as u16) << 8 | byte as u16,
                         );
                         offset += 1;
@@ -59,6 +61,64 @@ impl Write for Vga {
             OFFSET.store(offset, Ordering::SeqCst);
         }
         Ok(())
+    }
+}
+
+pub fn draw() {
+    draw_pixel(Coord::new(10, 20), Colour::Red);
+
+    draw_line(Coord::new(30, 30), Coord::new(60, 30), Colour::Blue);
+    draw_line(Coord::new(200, 130), Coord::new(250, 150), Colour::Blue);
+}
+
+struct Coord {
+    x: u16,
+    y: u16,
+}
+
+impl Coord {
+    fn new(x: u16, y: u16) -> Self {
+        Self { x, y }
+    }
+}
+
+// Brensenham Algorithm
+fn draw_line(start: Coord, end: Coord, colour: Colour) {
+    let dx = end.x.abs_diff(start.x) as i32;
+    let dy = end.y.abs_diff(start.y) as i32;
+
+    let sx: i32 = if start.x < end.x { 1 } else { -1 };
+    let sy: i32 = if start.y < end.y { 1 } else { -1 };
+
+    let mut err = if dx > dy { dx } else { -dy } / 2;
+
+    let mut x = start.x as i32;
+    let mut y = start.y as i32;
+
+    loop {
+        draw_pixel(Coord::new(x as u16, y as u16), colour);
+        if x as u16 == end.x && y as u16 == end.y {
+            break;
+        }
+        let tmp_err = err;
+        if tmp_err > -dx {
+            err -= dy;
+            x += sx;
+        }
+        if tmp_err < dy {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
+#[inline(always)]
+fn draw_pixel(point: Coord, colour: Colour) {
+    unsafe {
+        write_volatile(
+            DRAW_BUF.offset((point.x + 320 * point.y) as isize),
+            colour as u8,
+        )
     }
 }
 

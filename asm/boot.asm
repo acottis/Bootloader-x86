@@ -18,6 +18,11 @@ real_entry:
     mov ax, 0x03
     int 0x10
 
+    ; Enable 256 Colour draw mode
+    mov ah, 0x00
+    mov al, 0x13
+    int 0x10
+
     ; Set A20
     in al, A20_PORT
     or al, 2
@@ -35,9 +40,9 @@ real_entry:
 
     ; Enable protected mode
     ; https://wiki.osdev.org/CPU_Registers_x86#CR0
-	mov eax, cr0
-	or  eax, (1 << 0)
-	mov cr0, eax
+    mov eax, cr0
+    or  eax, (1 << 0)
+    mov cr0, eax
 
     ; Jump to 32 bit mode with the code descriptor as cs cant be modified with mov
     ; https://stackoverflow.com/questions/23978486/far-jump-in-gdt-in-bootloader
@@ -108,7 +113,7 @@ gdt_section_null:
 gdt_section_code:
     ; Limit
     dw 0xFFFF
-	; Base
+    ; Base
     dw 0x0000
     db 0x00
     ; AccessByte
@@ -116,11 +121,11 @@ gdt_section_code:
     ; Flags/Limit
     db 0xCF
     ; Base
-	db 0x00
-gdt_section_data:	
+    db 0x00
+gdt_section_data:   
     ; Limit
     dw 0xFFFF
-	; Base
+    ; Base
     dw 0x0000
     db 0x00
     ; AccessByte
@@ -128,7 +133,7 @@ gdt_section_data:
     ; Flags/Limit
     db 0xCF
     ; Base
-	db 0x00
+    db 0x00
 
 global_desc_table_desc:
     ; GDT.Limit
