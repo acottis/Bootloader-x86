@@ -67,10 +67,7 @@ impl Write for Vga {
 }
 
 pub fn draw() {
-    draw_pixel(Coord::new(0, 200), Colour::Red);
-
-    //draw_line(Coord::new(30, 30), Coord::new(60, 30), Colour::Blue);
-    //draw_line(Coord::new(200, 130), Coord::new(250, 150), Colour::Blue);
+    draw_pixel(Coord::new(0, DRAW_HEIGHT), Colour::Red);
 
     draw_rect(
         Coord::new(DRAW_WIDTH / 2, DRAW_HEIGHT / 2),
@@ -92,6 +89,9 @@ impl Coord {
     }
 }
 
+/// b--------c
+/// |        |
+/// origin---d
 fn draw_rect(origin: Coord, height: u16, width: u16, colour: Colour) {
     let a = origin;
     let b = Coord::new(origin.x, origin.y + height);
