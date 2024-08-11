@@ -6,6 +6,8 @@ use core::{
 
 const TEXT_BUF: *mut u16 = 0xB8000 as *mut u16;
 const DRAW_BUF: *mut u8 = 0xA0000 as *mut u8;
+const DRAW_HEIGHT: u16 = 200;
+const DRAW_WIDTH: u16 = 320;
 const WIDTH: isize = 80;
 static OFFSET: AtomicIsize = AtomicIsize::new(0);
 
@@ -65,12 +67,20 @@ impl Write for Vga {
 }
 
 pub fn draw() {
-    draw_pixel(Coord::new(10, 20), Colour::Red);
+    draw_pixel(Coord::new(0, 200), Colour::Red);
 
-    draw_line(Coord::new(30, 30), Coord::new(60, 30), Colour::Blue);
-    draw_line(Coord::new(200, 130), Coord::new(250, 150), Colour::Blue);
+    //draw_line(Coord::new(30, 30), Coord::new(60, 30), Colour::Blue);
+    //draw_line(Coord::new(200, 130), Coord::new(250, 150), Colour::Blue);
+
+    draw_rect(
+        Coord::new(DRAW_WIDTH / 2, DRAW_HEIGHT / 2),
+        20,
+        20,
+        Colour::White,
+    );
 }
 
+#[derive(Clone, Copy)]
 struct Coord {
     x: u16,
     y: u16,
@@ -80,6 +90,30 @@ impl Coord {
     fn new(x: u16, y: u16) -> Self {
         Self { x, y }
     }
+}
+
+fn draw_rect(origin: Coord, height: u16, width: u16, colour: Colour) {
+    let a = origin;
+    let b = Coord::new(origin.x, origin.y + height);
+    let c = Coord::new(origin.x + width, origin.y + height);
+    let d = Coord::new(origin.x + width, origin.y);
+    draw_rect_from_coords(a, b, c, d, colour);
+}
+
+/// b---c
+/// |   |
+/// a---d
+fn draw_rect_from_coords(
+    a: Coord,
+    b: Coord,
+    c: Coord,
+    d: Coord,
+    colour: Colour,
+) {
+    draw_line(a, b, colour);
+    draw_line(b, c, colour);
+    draw_line(c, d, colour);
+    draw_line(d, a, colour);
 }
 
 // Brensenham Algorithm
@@ -112,8 +146,14 @@ fn draw_line(start: Coord, end: Coord, colour: Colour) {
     }
 }
 
+/// 0, 200  -  320, 200
+/// |               |
+/// 0, 0    -  320, 0
 #[inline(always)]
-fn draw_pixel(point: Coord, colour: Colour) {
+fn draw_pixel(mut point: Coord, colour: Colour) {
+    // We normalise 0,0 to be bottom left
+    point.y = DRAW_HEIGHT - point.y;
+
     unsafe {
         write_volatile(
             DRAW_BUF.offset((point.x + 320 * point.y) as isize),

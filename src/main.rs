@@ -30,8 +30,8 @@ fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
 
 #[export_name = "entry"]
 fn entry(entry_addr: u32, memory_map_base_addr: u32) {
-    //println!("Rust Entry ESP:{:X}", entry_addr);
-    vga::foo();
+    println!("Rust Entry ESP:{:X}", entry_addr);
+    vga::draw();
 
     // This sets the initial IDT, must happen first to avoid clobbering
     // other devices setting interrupts
