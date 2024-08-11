@@ -18,10 +18,7 @@ real_entry:
     mov ax, 0x03
     int 0x10
 
-    ; Enable 256 Colour draw mode
-    mov ah, 0x00
-    mov al, 0x13
-    int 0x10
+    ;call enable_draw_mode
 
     ; Set A20
     in al, A20_PORT
@@ -47,6 +44,12 @@ real_entry:
     ; Jump to 32 bit mode with the code descriptor as cs cant be modified with mov
     ; https://stackoverflow.com/questions/23978486/far-jump-in-gdt-in-bootloader
     jmp (gdt_section_code - global_desc_table_base):pm_entry
+
+; Enable 256 Colour draw mode
+enable_draw_mode:
+    mov ax, 0x13
+    int 0x10
+    ret
 
 get_memory_map:
 
