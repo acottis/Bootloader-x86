@@ -1,3 +1,5 @@
+//! TODO: Very broken
+
 use self::reg::{ics, rctl, RCTL};
 use super::{MacAddress, NetworkCard};
 use crate::{
@@ -174,7 +176,8 @@ impl NetworkCard for Driver {
         device.enable();
 
         // Insert interrupt into IDT
-        Idt::insert(irq, (device.interrupt_line() + pic::IRQ0_OFFSET) as usize);
+        Idt::insert(irq, device.interrupt_line());
+        pic::unmask(device.interrupt_line());
 
         Self {
             mmio_base,

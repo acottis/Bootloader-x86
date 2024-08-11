@@ -28,11 +28,13 @@ pub fn in32(port: u16) -> u32 {
     }
 }
 
+/// Clear the interrupt flag [https://www.felixcloutier.com/x86/cli]
 #[inline(always)]
 pub fn cli() {
     unsafe { asm!("cli") }
 }
 
+/// Set the interrupt flag [https://www.felixcloutier.com/x86/sti]
 #[inline(always)]
 pub fn sti() {
     unsafe { asm!("sti") }

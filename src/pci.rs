@@ -11,13 +11,13 @@ const FUNCTIONS: u8 = 7;
 #[repr(u16)]
 pub enum Vendor {
     Intel = 0x8086,
-    Unknown(u16),
+    Unknown,
 }
 impl From<u16> for Vendor {
     fn from(value: u16) -> Self {
         match value {
             0x8086 => Self::Intel,
-            _ => Self::Unknown(value),
+            _ => Self::Unknown,
         }
     }
 }
@@ -25,14 +25,14 @@ impl From<u16> for Vendor {
 #[repr(u16)]
 pub enum Id {
     E1000 = 0x100E,
-    Unknown(u16),
+    Unknown,
 }
 
 impl From<u16> for Id {
     fn from(value: u16) -> Self {
         match value {
             0x100E => Self::E1000,
-            _ => Self::Unknown(value),
+            _ => Self::Unknown,
         }
     }
 }

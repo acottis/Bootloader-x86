@@ -59,11 +59,13 @@ impl Serialise for Ethernet {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum Protocol {
     Arp(Arp),
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(super) struct Packet {
     ethernet: Ethernet,

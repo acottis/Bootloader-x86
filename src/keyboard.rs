@@ -3,6 +3,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use crate::{cpu::in8, interrupts::Idt, pic};
 
 const KEYBOARD_PORT: u16 = 0x60;
+const IRQ_PIN: u8 = 1;
 
 const _BACKSPACE: u8 = 0x0E;
 
@@ -58,5 +59,6 @@ fn isr() {
 }
 
 pub fn init() {
-    Idt::insert(irq, pic::IRQ0_OFFSET as usize + 1);
+    Idt::insert(irq, IRQ_PIN);
+    crate::pic::unmask(IRQ_PIN);
 }

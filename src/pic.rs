@@ -21,16 +21,26 @@ const READ_IRR: u8 = 0x0A;
 #[allow(dead_code)]
 const READ_ISR: u8 = 0x0B;
 
-// This seems wrong
-pub fn irq_reg() -> u16 {
-    out8(PIC1_COMMAND, READ_IRR);
-    out8(PIC2_COMMAND, READ_IRR);
-    ((in8(PIC2_COMMAND) as u16) << 8) | in8(PIC1_COMMAND) as u16
-}
-
 pub fn end_of_interrupt() {
     out8(PIC1_COMMAND, PIC_END_OF_INTERRUPT);
     out8(PIC2_COMMAND, PIC_END_OF_INTERRUPT);
+}
+
+/// Unmask a specific IRQ on the PIC
+pub fn unmask(irq_pin: u8) {
+    cli();
+    if irq_pin < 8 {
+        let mut mask = in8(PIC1_DATA);
+        mask &= !(1 << irq_pin);
+        out8(PIC1_DATA, mask);
+    } else if irq_pin < 16 {
+        let mut mask = in8(PIC2_DATA);
+        mask &= !(1 << irq_pin);
+        out8(PIC2_DATA, mask);
+    } else {
+        panic!("[ERROR] Invalid IRQ pin {irq_pin}, must be less than 16");
+    }
+    sti();
 }
 
 pub fn init() {
@@ -46,15 +56,18 @@ pub fn init() {
 
     // Tell master that slave is at IRQ2
     out8(PIC1_DATA, 0b0000_0100);
-    // Tell slave its cascae identity
+    // Tell slave its cascade identity
     out8(PIC2_DATA, 0b0000_0010);
 
     // Set 8086 mode
     out8(PIC1_DATA, ICW4_8086);
     out8(PIC2_DATA, ICW4_8086);
 
-    // Mask interrupts we dont care about
-    out8(PIC1_DATA, 1);
-    out8(PIC2_DATA, 0);
+    // Initialise all interupt pins as disabled, except from cascade
+    // pin that essentially enables PIC2 PINS.
+    // To register call the [unmask_irq()] function
+    out8(PIC1_DATA, 0b1111_1011);
+    out8(PIC2_DATA, 0b1111_1111);
+
     sti();
 }

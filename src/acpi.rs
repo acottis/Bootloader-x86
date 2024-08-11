@@ -59,7 +59,7 @@ impl Rsdp {
             .fold(0, |acc, byte| u8::wrapping_add(acc, *byte));
 
         if struct_bytes_sum != 0 {
-            return Err(Error::RsdpCheckSumNotZero(struct_bytes_sum));
+            return Err(Error::RsdpCheckSumNotZero);
         }
 
         Ok(())
@@ -88,7 +88,7 @@ impl Rsdt {
         });
 
         if sum != 0 {
-            return Err(Error::RsdtCheckSumNotZero(sum));
+            return Err(Error::RsdtCheckSumNotZero);
         }
 
         Ok(())

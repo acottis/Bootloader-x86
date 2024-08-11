@@ -1,10 +1,16 @@
-use crate::{cpu, pic::end_of_interrupt};
+use crate::{
+    cpu,
+    pic::{end_of_interrupt, IRQ0_OFFSET},
+};
 
 const IDT_ENTRIES: u16 = 0xFF;
 const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
 const CODE_SELECTOR_OFFSET: u16 = 8;
 const IDT_BASE: usize = 0x1000;
+
+const EXCEPTION_START: usize = 0x00;
+const EXCEPTION_END: usize = 0x1F;
 
 static mut IDT: *mut [IdtEntry; IDT_ENTRIES as usize] =
     IDT_BASE as *mut [IdtEntry; IDT_ENTRIES as usize];
@@ -84,9 +90,12 @@ impl Default for IdtEntry {
 pub struct Idt;
 
 impl Idt {
-    pub fn insert(isr: unsafe extern "C" fn() -> !, entry: usize) {
+    /// entry is the entry ignoring the exception offsets. So [IRQ0_OFFSET]
+    /// is the first value
+    pub fn insert(isr: unsafe extern "C" fn() -> !, entry: u8) {
+        cpu::cli();
         unsafe {
-            (*IDT)[entry] = IdtEntry {
+            (*IDT)[(entry + IRQ0_OFFSET) as usize] = IdtEntry {
                 isr_low: isr as u16,
                 // The entry of our CODE selector in GDT
                 kernel_cs: CODE_SELECTOR_OFFSET,
@@ -95,11 +104,10 @@ impl Idt {
                 isr_high: (isr as u32 >> 16) as u16,
             }
         }
+        cpu::sti();
     }
 
     pub fn init() {
-        const EXCEPTION_START: usize = 0x00;
-        const EXCEPTION_END: usize = 0x1F;
         let mut entry: usize = 0;
 
         unsafe {
