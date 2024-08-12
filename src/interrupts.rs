@@ -93,7 +93,6 @@ impl Idt {
     /// entry is the entry ignoring the exception offsets. So [IRQ0_OFFSET]
     /// is the first value
     pub fn insert(isr: unsafe extern "C" fn() -> !, entry: u8) {
-        cpu::cli();
         unsafe {
             (*IDT)[(entry + IRQ0_OFFSET) as usize] = IdtEntry {
                 isr_low: isr as u16,
@@ -104,7 +103,6 @@ impl Idt {
                 isr_high: (isr as u32 >> 16) as u16,
             }
         }
-        cpu::sti();
     }
 
     pub fn init() {

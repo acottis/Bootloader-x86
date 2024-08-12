@@ -2,6 +2,7 @@
 //! [https://wiki.osdev.org/Programmable_Interval_Timer]
 
 use crate::cpu::{cli, in8, out8, sti};
+use core::sync::atomic::{AtomicU64, Ordering};
 
 const CHANNEL_0: u16 = 0x40;
 const COMMAND: u16 = 0x43;
@@ -36,10 +37,23 @@ enum OperatingMode {
     Five,
 }
 
+static TICKS: AtomicU64 = AtomicU64::new(0);
+
 isr!(irq, pit);
 fn isr() {
-    print!("{} ", read(Channel::Zero));
+    // TICKS.fetch_add(1, Ordering::SeqCst);
+    // print!("i");
     crate::pic::end_of_interrupt();
+}
+
+pub fn sleep(ticks: u64) {
+    crate::cpu::halt();
+    crate::cpu::halt();
+    crate::cpu::halt();
+    crate::cpu::halt();
+    crate::cpu::halt();
+    crate::cpu::halt();
+    crate::cpu::halt();
 }
 
 pub fn init() {

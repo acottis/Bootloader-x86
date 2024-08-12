@@ -39,10 +39,12 @@ fn entry(entry_addr: u32, memory_map_base_addr: u32) {
     pic::init();
 
     pit::init();
+    keyboard::init();
     //vga::draw();
 
     //acpi::init();
-    keyboard::init();
+    //pit::sleep(100);
+    //println!("foo");
 
     //    mm::init(memory_map_base_addr)
     //        .expect("Failed to find suitable memory region for allocator");

@@ -1,12 +1,31 @@
 use core::arch::asm;
 
+/// If we send IO port instructions too quickly we have timing issues
+/// https://wiki.osdev.org/Inline_Assembly/Examples#I/O_access
+#[inline(always)]
+pub fn iowait() {
+    _out8(0x80, 0);
+}
+
 #[inline(always)]
 pub fn out8(port: u16, value: u8) {
+    _out8(port, value);
+    iowait();
+}
+
+#[inline(always)]
+fn _out8(port: u16, value: u8) {
     unsafe { asm!("out dx, al", in("al") value, in("dx") port) }
 }
 
 #[inline(always)]
 pub fn out32(port: u16, value: u32) {
+    _out32(port, value);
+    iowait();
+}
+
+#[inline(always)]
+fn _out32(port: u16, value: u32) {
     unsafe { asm!("out dx, eax", in("eax") value, in("dx") port) }
 }
 

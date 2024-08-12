@@ -1,4 +1,4 @@
-use crate::cpu::{cli, in8, out8, sti};
+use crate::cpu::{cli, in8, iowait, out8, sti};
 
 const PIC1_COMMAND: u16 = 0x20;
 const PIC1_DATA: u16 = 0x21;
@@ -31,11 +31,11 @@ pub fn unmask(irq_pin: u8) {
     cli();
     if irq_pin < 8 {
         let mut mask = in8(PIC1_DATA);
-        mask &= !(1 << irq_pin);
+        mask ^= 1u8 << irq_pin;
         out8(PIC1_DATA, mask);
     } else if irq_pin < 16 {
         let mut mask = in8(PIC2_DATA);
-        mask &= !(1 << irq_pin);
+        mask ^= 1u8 << irq_pin;
         out8(PIC2_DATA, mask);
     } else {
         panic!("[ERROR] Invalid IRQ pin {irq_pin}, must be less than 16");
