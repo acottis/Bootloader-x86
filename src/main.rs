@@ -42,13 +42,13 @@ fn entry(entry_addr: u32, memory_map_base_addr: u32) {
 
     pit::init(1000);
     keyboard::init();
-    pit::sleep_ms(1000);
+    // pit::sleep_ms(1000);
     //vga::draw();
 
-    mm::init(memory_map_base_addr)
-        .expect("Failed to find suitable memory region for allocator");
+    //    mm::init(memory_map_base_addr)
+    //        .expect("Failed to find suitable memory region for allocator");
 
-    let devices = pci::init();
+    //    let devices = pci::init();
     //net::init(&devices);
 
     loop {

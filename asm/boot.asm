@@ -164,6 +164,6 @@ pm_entry:
     push entry
     ; fn entry(memory_map: u32, entry_addr: u32)
     call entry
-    
+
 ; Reserve space for entries in the memory map
 memory_map: equ 0x400
