@@ -1,7 +1,7 @@
 //! Programmable Interval Timer
 //! [https://wiki.osdev.org/Programmable_Interval_Timer]
 
-use crate::cpu::{cli, in8, out8, sti};
+use crate::cpu::{cli, halt, in8, out8, sti};
 use core::sync::atomic::{AtomicU64, Ordering};
 
 const CHANNEL_0: u16 = 0x40;
@@ -41,22 +41,20 @@ static TICKS: AtomicU64 = AtomicU64::new(0);
 
 isr!(irq, pit);
 fn isr() {
-    // TICKS.fetch_add(1, Ordering::SeqCst);
-    // print!("i");
+    TICKS.fetch_add(1, Ordering::SeqCst);
     crate::pic::end_of_interrupt();
 }
 
-pub fn sleep(ticks: u64) {
-    crate::cpu::halt();
-    crate::cpu::halt();
-    crate::cpu::halt();
-    crate::cpu::halt();
-    crate::cpu::halt();
-    crate::cpu::halt();
-    crate::cpu::halt();
+pub fn sleep_ms(ticks: u64) {
+    let current_ticks = TICKS.load(Ordering::Relaxed);
+    let target_ticks = current_ticks + ticks;
+    while TICKS.load(Ordering::Relaxed) < target_ticks {
+        halt();
+    }
 }
 
-pub fn init() {
+/// Hertz is the amount of times per second the interupt fires
+pub fn init(hertz: u32) {
     cli();
 
     out8(
@@ -66,8 +64,7 @@ pub fn init() {
             | (OperatingMode::Three as u8) << 1,
     );
 
-    let frequency = 144;
-    let divisor: u16 = (CLOCK_SPEED / frequency).try_into().unwrap_or(u16::MAX);
+    let divisor: u16 = (CLOCK_SPEED / hertz).try_into().unwrap_or(u16::MAX);
 
     out8(CHANNEL_0, divisor as u8);
     out8(CHANNEL_0, (divisor >> 8) as u8);

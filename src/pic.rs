@@ -1,4 +1,4 @@
-use crate::cpu::{cli, in8, iowait, out8, sti};
+use crate::cpu::{cli, in8, out8, sti};
 
 const PIC1_COMMAND: u16 = 0x20;
 const PIC1_DATA: u16 = 0x21;
