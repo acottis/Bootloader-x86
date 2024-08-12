@@ -39,9 +39,9 @@ fn entry(entry_addr: u32, memory_map_base_addr: u32) {
     pic::init();
 
     pit::init();
-    vga::draw();
+    //vga::draw();
 
-    acpi::init();
+    //acpi::init();
     keyboard::init();
 
     //    mm::init(memory_map_base_addr)

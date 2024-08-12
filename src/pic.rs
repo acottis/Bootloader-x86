@@ -6,7 +6,7 @@ const PIC1_DATA: u16 = 0x21;
 const PIC2_COMMAND: u16 = 0xA0;
 const PIC2_DATA: u16 = 0xA1;
 
-const PIC_END_OF_INTERRUPT: u8 = 0x20;
+const END_OF_INTERRUPT: u8 = 0x20;
 
 const ICW1_INIT: u8 = 0x10;
 const ICW1_ICW4: u8 = 0x01;
@@ -22,8 +22,8 @@ const READ_IRR: u8 = 0x0A;
 const READ_ISR: u8 = 0x0B;
 
 pub fn end_of_interrupt() {
-    out8(PIC1_COMMAND, PIC_END_OF_INTERRUPT);
-    out8(PIC2_COMMAND, PIC_END_OF_INTERRUPT);
+    out8(PIC1_COMMAND, END_OF_INTERRUPT);
+    out8(PIC2_COMMAND, END_OF_INTERRUPT);
 }
 
 /// Unmask a specific IRQ on the PIC
