@@ -4,11 +4,6 @@ target = "i586-unknown-linux-gnu"
 rustflags = [
     "-Crelocation-model=static",
 	"-Cpanic=abort",
-    "-Clink-arg=-Tlink.ld",
-    "-Clink-arg=-otarget/stage0.bin",
-    "-Clink-arg=target/asm.o",
-    "-Clink-arg=-static",
-    "-Clink-arg=-nostdlib",
     "-Clto",
     "-Cembed-bitcode=yes",
 ]

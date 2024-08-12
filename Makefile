@@ -13,11 +13,5 @@ tftp: rust
 		-m 64M \
 		-nic tftp=target,bootfile=stage0.bin 
 
-mkdir:
-	mkdir -p target
-
-asm: mkdir
-	nasm -felf32 asm/boot.asm -o target/asm.o
-
-rust: asm
+rust:
 	cargo build --release
