@@ -30,25 +30,24 @@ fn panic_handler(info: &core::panic::PanicInfo<'_>) -> ! {
 }
 
 #[export_name = "entry"]
-fn entry(entry_addr: u32, memory_map_base_addr: u32) {
+fn entry(entry_addr: u32, memory_map_base_addr: u32, gdt_cs_offset: u16) {
     println!("Rust Entry ESP:{:X}", entry_addr);
 
     // This sets the initial IDT, must happen first to avoid clobbering
     // other devices setting interrupts
-    interrupts::Idt::init();
+    interrupts::Idt::init(gdt_cs_offset);
     pic::init();
 
     acpi::init();
 
-    pit::init(1000);
     keyboard::init();
-    // pit::sleep_ms(1000);
-    //vga::draw();
+    pit::init(1000);
+    vga::draw();
 
-    //    mm::init(memory_map_base_addr)
-    //        .expect("Failed to find suitable memory region for allocator");
+    mm::init(memory_map_base_addr)
+        .expect("Failed to find suitable memory region for allocator");
 
-    //    let devices = pci::init();
+    //let devices = pci::init();
     //net::init(&devices);
 
     loop {

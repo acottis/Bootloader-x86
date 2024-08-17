@@ -1,31 +1,51 @@
 use core::arch::asm;
 
+struct Ax {}
+
+#[derive(Default)]
+#[repr(C)]
+pub struct Registers {
+    pub ax: u16,
+    pub bx: u16,
+    pub cx: u16,
+    pub dx: u16,
+    pub di: u16,
+    pub si: u16,
+    pub sp: u16,
+    pub bp: u16,
+}
+
+extern "C" {
+    /// Invokes an interupt in real mode before comming back to protected
+    pub fn invoke_realmode(int: u16, registers: *mut Registers);
+}
+
 /// If we send IO port instructions too quickly we have timing issues
 /// https://wiki.osdev.org/Inline_Assembly/Examples#I/O_access
 #[inline(always)]
 pub fn iowait() {
-    _out8(0x80, 0);
+    out8_fast(0x80, 0);
 }
 
 #[inline(always)]
 pub fn out8(port: u16, value: u8) {
-    _out8(port, value);
+    out8_fast(port, value);
     iowait();
 }
 
 #[inline(always)]
-fn _out8(port: u16, value: u8) {
+fn out8_fast(port: u16, value: u8) {
     unsafe { asm!("out dx, al", in("al") value, in("dx") port) }
 }
 
 #[inline(always)]
 pub fn out32(port: u16, value: u32) {
-    _out32(port, value);
+    out32_fast(port, value);
     iowait();
 }
 
 #[inline(always)]
-fn _out32(port: u16, value: u32) {
+fn out32_fast(port: u16, value: u32) {
     unsafe { asm!("out dx, eax", in("eax") value, in("dx") port) }
 }
 

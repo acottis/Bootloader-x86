@@ -1,3 +1,5 @@
+use core::sync::atomic::{AtomicU16, Ordering};
+
 use crate::{
     cpu,
     pic::{end_of_interrupt, IRQ0_OFFSET},
@@ -6,12 +8,12 @@ use crate::{
 const IDT_ENTRIES: u16 = 0xFF;
 const IDT_SIZE: u16 = core::mem::size_of::<IdtEntry>() as u16;
 const IDT_LENGTH: u16 = IDT_ENTRIES * IDT_SIZE - 1;
-const CODE_SELECTOR_OFFSET: u16 = 8;
 const IDT_BASE: usize = 0x1000;
 
 const EXCEPTION_START: usize = 0x00;
 const EXCEPTION_END: usize = 0x1F;
 
+static CODE_SELECTOR_OFFSET: AtomicU16 = AtomicU16::new(0);
 static mut IDT: *mut [IdtEntry; IDT_ENTRIES as usize] =
     IDT_BASE as *mut [IdtEntry; IDT_ENTRIES as usize];
 
@@ -74,19 +76,6 @@ struct IdtEntry {
     isr_high: u16,
 }
 
-impl Default for IdtEntry {
-    fn default() -> Self {
-        Self {
-            isr_low: (isr_default as *const usize) as u16,
-            // The entry of our CODE selector in GDT
-            kernel_cs: CODE_SELECTOR_OFFSET,
-            reserved: 0,
-            attributes: 0x8E,
-            isr_high: ((isr_default as *const usize as usize) >> 16) as u16,
-        }
-    }
-}
-
 pub struct Idt;
 
 impl Idt {
@@ -97,7 +86,7 @@ impl Idt {
             (*IDT)[(entry + IRQ0_OFFSET) as usize] = IdtEntry {
                 isr_low: isr as u16,
                 // The entry of our CODE selector in GDT
-                kernel_cs: CODE_SELECTOR_OFFSET,
+                kernel_cs: CODE_SELECTOR_OFFSET.load(Ordering::Relaxed),
                 reserved: 0,
                 attributes: 0x8F,
                 isr_high: (isr as u32 >> 16) as u16,
@@ -105,8 +94,10 @@ impl Idt {
         }
     }
 
-    pub fn init() {
+    pub fn init(gdt_cs_offset: u16) {
         let mut entry: usize = 0;
+
+        CODE_SELECTOR_OFFSET.store(gdt_cs_offset, Ordering::Relaxed);
 
         unsafe {
             while entry < IDT_ENTRIES as usize {
@@ -115,13 +106,22 @@ impl Idt {
                         (*IDT)[entry] = IdtEntry {
                             isr_low: trap_default as u16,
                             // The entry of our CODE selector in GDT
-                            kernel_cs: CODE_SELECTOR_OFFSET,
+                            kernel_cs: gdt_cs_offset,
                             reserved: 0,
                             attributes: 0x8F,
                             isr_high: (trap_default as u32 >> 16) as u16,
                         };
                     }
-                    _ => (*IDT)[entry] = IdtEntry::default(),
+                    _ => {
+                        (*IDT)[entry] = IdtEntry {
+                            isr_low: isr_default as u16,
+                            // The entry of our CODE selector in GDT
+                            kernel_cs: gdt_cs_offset,
+                            reserved: 0,
+                            attributes: 0x8E,
+                            isr_high: (isr_default as usize >> 16) as u16,
+                        }
+                    }
                 };
                 entry += 1;
             }

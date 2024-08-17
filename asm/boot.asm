@@ -3,6 +3,7 @@
 ;ORG 0x7C00
 
 extern entry
+global invoke_realmode
 
 section .stage0
 
@@ -10,7 +11,7 @@ section .stage0
 
 ; assemble copatable with x86 real mode
 [bits 16]
-real_entry: 
+boot_entry: 
     ; Disable hardware interupts
     cli
 
@@ -31,9 +32,10 @@ real_entry:
     ; Read next stage bootloader from disk
     call read_disk
 
-    ; Load our Global Descriptor Table to disable segmentation memory management
+    ; Load our Global Descriptor Table to disable segmentation memory 
+    ; management
     ; https://c9x.me/x86/html/file_module_x86_id_156.html
-    lgdt [global_desc_table_desc]
+    lgdt [gdt_desc]
 
     ; Enable protected mode
     ; https://wiki.osdev.org/CPU_Registers_x86#CR0
@@ -43,7 +45,7 @@ real_entry:
 
     ; Jump to 32 bit mode with the code descriptor as cs cant be modified with mov
     ; https://stackoverflow.com/questions/23978486/far-jump-in-gdt-in-bootloader
-    jmp (gdt_section_code - global_desc_table_base):pm_entry
+    jmp (gdt_protected_code - gdt_base):protected_entry
 
 ; Enable 256 Colour draw mode
 enable_draw_mode:
@@ -106,18 +108,89 @@ disk_access_packet:
     load_address dd 0x7C00 
     start_sector dq 0
 
+; Run a real mode function in here
+realmode:
+    mov eax, cr0
+    and eax, ~1
+    mov cr0, eax
+
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+
+    ; Need to swtich CS to the base addres (0) with farjump
+    jmp 0:.enter_func
+
+.enter_func:
+    mov eax, [esp + 8]
+    mov bx, [eax + Registers.bx]
+    mov cx, [eax + Registers.cx]
+    mov dx, [eax + Registers.dx]
+    mov ax, [eax + Registers.ax]
+    int 0x10
+
+;	jmp $
+
+.exit_func:
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax
+
+	mov ax, (gdt_protected_data - gdt_base)
+	mov es, ax
+	mov ds, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+
+;    pushfd
+;    push dword (gdt_protected_code - gdt_base)
+;    push dword realmode_exit
+;    iretd
+    jmp (gdt_protected_code - gdt_base):realmode_exit 
+
 ; Lets us Read/Write/Execute all memory! God mode!
 ; https://wiki.osdev.org/GDT_Tutorial
 ; https://wiki.osdev.org/GDT
-global_desc_table_base:
+gdt_base:
 ; Section0 - Null Descriptor, required for sanity 
-gdt_section_null:
+gdt_protected_null:
     dq 0x0000000000000000
-gdt_section_code:
+gdt_real_code:
     ; Limit
     dw 0xFFFF
     ; Base
     dw 0x0000
+    ; BaseHigher
+    db 0x00
+    ; AccessByte
+    db 0b10011010
+    ; Flags/Limit
+    db 0x00
+    ; Base
+    db 0x00
+gdt_real_data:   
+    ; Limit
+    dw 0xFFFF
+    ; BaseLower
+    dw 0x0000
+    ; BaseHigher
+    db 0x00
+    ; AccessByte
+    db 0b10010010
+    ; Flags/Limit
+    db 0x00
+    ; Base
+    db 0x00
+gdt_protected_code:
+    ; Limit
+    dw 0xFFFF
+    ; Base
+    dw 0x0000
+    ; BaseHigher
     db 0x00
     ; AccessByte
     db 0b10011010
@@ -125,11 +198,12 @@ gdt_section_code:
     db 0xCF
     ; Base
     db 0x00
-gdt_section_data:   
+gdt_protected_data:   
     ; Limit
     dw 0xFFFF
-    ; Base
+    ; BaseLower
     dw 0x0000
+    ; BaseHigher
     db 0x00
     ; AccessByte
     db 0b10010010
@@ -138,17 +212,17 @@ gdt_section_data:
     ; Base
     db 0x00
 
-global_desc_table_desc:
+gdt_desc:
     ; GDT.Limit
-    dw global_desc_table_desc - global_desc_table_base - 1
+    dw gdt_desc - gdt_base - 1
     ; GDT.Base
-    dd global_desc_table_base
+    dd gdt_base
 
 [bits 32]
-pm_entry:
+protected_entry:
     ; Reload the data segment registers with the data descriptor
     ; First we calculate the offset of the data segment in GDT 
-    mov   ax, (gdt_section_data - global_desc_table_base)
+    mov   ax, (gdt_protected_data - gdt_base)
     mov   ds, ax
     mov   es, ax
     mov   fs, ax
@@ -158,12 +232,44 @@ pm_entry:
     ; Set up a stack
     mov esp, 0x7C00
 
+    ; Pass GDT code selector we want to use
+    push (gdt_protected_code - gdt_base)
     ; Pass memory mem_map address to rust
     push memory_map
     ; Pass the entry address of rust
     push entry
-    ; fn entry(memory_map: u32, entry_addr: u32)
+    ; fn entry(memory_map: u32, entry_addr: u32, gdt_cs_offset: u16)
     call entry
 
+; Args
+; Registers: usize - [ESP+8] - Struct of register values to be used in the call
+; Int: u16 - [ESP+4]- The interrupt to be invoked
+invoke_realmode:
+    cli
+	pushad
+	add esp, 8 * 4
+
+    mov ax, gdt_real_data - gdt_base
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+
+    jmp (gdt_real_code - gdt_base):realmode
+
+realmode_exit:
+	sub esp, 8 * 4
+	popad
+    sti
+    ret
+
+; Rust struct
+struc Registers
+    .ax: resw 1 
+    .bx: resw 1
+    .cx: resw 1
+    .dx: resw 1
+endstruc
 ; Reserve space for entries in the memory map
 memory_map: equ 0x400
